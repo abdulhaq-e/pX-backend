@@ -610,7 +610,7 @@ class StudentEnrolment(UISBaseModel):
     def save(self, *args, **kwargs):
         if self.grade is None:
             if (self.carry_marks is None and self.final_exam is None):
-                continue
+                pass
             elif (self.carry_marks is None or self.final_exam is None):
                 raise IntegrityError
             else:
