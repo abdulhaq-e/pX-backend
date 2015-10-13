@@ -1,185 +1,186 @@
-from django.shortcuts import get_object_or_404
-from django.views.generic import (DetailView, TemplateView,
-                                  FormView, CreateView,
-                                  DeleteView)
-from django.views.generic.base import RedirectView
-from django.core.urlresolvers import reverse
-from models import *
-from querysets import *
-from forms import *
-# from UIS.mixins import PeriodMixin, StudentMixin
-# from extra_views import ModelFormSetView
-# from braces.views import LoginRequiredMixin
-from rest_framework import viewsets
-from rest_framework.decorators import detail_route, list_route
-from rest_framework.response import Response
-from rest_framework import status
-import django_filters
+# -*- encoding: utf-8 -*-
+from __future__ import unicode_literals
 
-from UIS.serialisers import (StudentSerialiser, UserSerialiser,
-                             StudentEnrolmentSerialiser,
-                             StudentResultSerialiser,
-                             PeriodCourseSectionSerialiser,
-                             SectionSerialiser)
+import os
+from django.http import HttpResponse
+from django.template import Context
+from django.template.loader import get_template
+from subprocess import Popen, PIPE
+import tempfile
+from .models.students import Student
 
 
-class StudentViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows users to be viewed or edited.
-    """
+def student_enrolment_as_pdf(request, registration_number):
 
-#    lookup_field = 'registration_number'
-    queryset = Student.objects.all()
-    serializer_class = StudentSerialiser
-
-    @detail_route()
-    def get_results(self, request, pk=None):
-        student = self.get_object()
-        return Response(student.get_prettier_results())
-
-    @detail_route()
-    def get_progress(self, request, pk=None):
-        student = self.get_object()
-        return Response(student.get_progress())
-
-    @detail_route()
-    def get_enrolments(self, request, pk=None):
-        student = self.get_object()
-        enrolments = StudentEnrolment.objects.filter(
-            student_registration__student=student)
-        serialiser = EnrolmentSerialiser(enrolments, many=True)
-        return Response(serialiser.data)
-
-    @detail_route(methods=['post'])
-    def enrol(self, request, pk=None):
-        student = self.get_object()
-        # section = Section.objects.get(
-        #     section_id=request.data['section_id'])
-        # #student_registration = request.data['student_registration']
-        # request.data.pop('section_id')
-        # request.data.update({'section': section})
-        serialiser = EnrolmentSerialiser(data=request.data)
-
-        if serialiser.is_valid():
-            serialiser.save()
-            # StudentEnrolment.objects.create(
-            #     student_registration=serialiser.data['student_registration'],
-            #     section=serialiser.data['section'])
-            return Response({'status': 'enrolment added'})
-        else:
-            return Response(serialiser.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
+    student = Student.objects.get(registration_number=registration_number)
+    context = {
+        'student': student,
+        'allowed_courses': student.get_allowed_enrolments()
+    }
+    template = get_template('my_template.tex', using='jinja2')
+    rendered_tpl = template.render(context=context).encode('utf8')
+    # with open(os.path.join(
+    #         '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/',
+    #         's'+registration_number), 'w') as texfile:
+    #     texfile.write(rendered_tpl)
+    # Python3 only. For python2 check out the docs!
+    if student.advisor == None:
+        student.advisor = "بدون مشرف"
+    directory = os.path.join(
+        '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/student_enrolment/' +
+        student.advisor
+    )
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    #tempdir = tempfile.mkdtemp()
+    # Create subprocess, supress output with PIPE and
+    # run latex twice to generate the TOC properly.
+    # Finally read the generated pdf.
+    for i in range(2):
+        process = Popen(
+            ['xelatex',
+             '-jobname', ' '.join([student.get_full_name_ar(), ' - ',
+                                   registration_number]),
+             '-output-directory', directory],
+            stdin=PIPE,
+            stdout=PIPE,
+        )
+        process.communicate(rendered_tpl)
+    # with open(os.path.join(tempdir, 'texput.pdf'), 'rb') as f:
+    #     pdf = f.read()
+    # r = HttpResponse(content_type='application/pdf')
+    # # r['Content-Disposition'] = 'attachment; filename=texput.pdf'
+    # r.write(pdf)
+    # return r
+    return None
 
 
-class UserViewSet(viewsets.ModelViewSet):
+def student_grade_as_pdf(request, registration_number):
 
-    serializer_class = UserSerialiser
-    queryset = UISUser.objects.all()
-
-
-# class StudentEnrolmentFilter(django_filters.FilterSet):
-
-#     registration_number = django_filters.CharFilter(
-#         name="student_registration__student__registration_number")
-
-#     class Meta:
-#         model = StudentEnrolment
-#         fields = ('registration_number',)
-
-
-class StudentEnrolmentViewSet(viewsets.ModelViewSet):
-
-    model = StudentEnrolment
-    serializer_class = StudentEnrolmentSerialiser
-    # filter_class = StudentEnrolmentFilter
-
-    def get_queryset(self):
-        """
-        """
-        student = self.request.QUERY_PARAMS.get(
-            'student_id', None)
-        registration_number = self.request.QUERY_PARAMS.get(
-            'registration_number', None)
-        period = Period.objects.get(period=2, academic_year='2014,2015')
-        print period
-        if (student is not None):
-            queryset = StudentEnrolment.original.filter(
-                student_registration__student=student,
-                student_registration__period_degree__period=period)
-            return queryset
-        elif (registration_number is not None):
-            queryset = StudentEnrolment.original.filter(
-                student_registration__student__registration_number=registration_number,
-                student_registration__period_degree__period=period)
-            return queryset
-        # else:
-        #     return StudentEnrolment.objects.all()
-
-
-class StudentResultViewSet(viewsets.ReadOnlyModelViewSet):
-
-    model = StudentResult
-    serializer_class = StudentResultSerialiser
-    # filter_class = StudentEnrolmentFilter
-
-    def get_queryset(self):
-        """
-        """
-        student = self.request.QUERY_PARAMS.get(
-            'student_id', None)
-        registration_number = self.request.QUERY_PARAMS.get(
-            'registration_number', None)
-        if (student is not None):
-            return StudentResult.objects.filter(
-                student_registration__student=student)# __student__registration_number=registration_number)
-        elif registration_number is not None:
-            return StudentResult.objects.filter(
-                student_registration__student__registration_number=registration_number)
-        else:
-            return StudentResult.objects.all()
-
-class SectionViewSet(viewsets.ModelViewSet):
-    model = Section
-    serializer_class = SectionSerialiser
-    #queryset = Section.objects.all()
-
-    def get_queryset(self):
-        """
-        """
-        period = self.request.QUERY_PARAMS.get(
-            'period', None)
-
-        if (period is not None):
-            queryset = Section.objects.filter(
-                period_course__period=period)
-        else:
-            return Section.objects.all()
-        return queryset
+    student = Student.objects.get(registration_number=registration_number)
+    context = {
+        'student': student,
+        'enrolments': student.get_enroled_courses(),
+        'registrations': student.student_registrations.all(),
+        'results': student.student_registrations.last().studentresult,
+    }
+    template = get_template('student_grade_template.tex', using='jinja2')
+    rendered_tpl = template.render(context=context).encode('utf8')
+    # with open(os.path.join(
+    #         '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/tests/',
+    #         's'+registration_number+'.tex'), 'w') as texfile:
+    #     texfile.write(rendered_tpl)
+    # Python3 only. For python2 check out the docs!
+    if student.advisor == None:
+        student.advisor = "بدون مشرف"
+    directory = os.path.join(
+        '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/student_grade/' +
+        student.advisor
+    )
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    #tempdir = tempfile.mkdtemp()
+    # Create subprocess, supress output with PIPE and
+    # run latex twice to generate the TOC properly.
+    # Finally read the generated pdf.
+    for i in range(2):
+        process = Popen(
+            ['xelatex',
+             '-jobname', ' '.join([student.get_full_name_ar(), ' - ',
+                                   registration_number]),
+             '-output-directory', directory],
+            stdin=PIPE,
+            stdout=PIPE,
+        )
+        process.communicate(rendered_tpl)
+    # with open(os.path.join(tempdir, 'texput.pdf'), 'rb') as f:
+    #      pdf = f.read()
+    # r = HttpResponse(content_type='application/pdf')
+    #  r['Content-Disposition'] = 'attachment; filename=texput.pdf'
+    # r.write(pdf)
+    # return r
+    return None
 
 
-# class PeriodCourseFilter(django_filters.FilterSet):
+def advisors_list_as_pdf(request):
+    advisors = [
+        'د. جمال الشاوش', 'د. عبد الحميد عاشور', 'د. عبد الرسول قاسم',
+        'د. علي الرابطي', 'د. أبوبكر الجعيدي', 'د. صالح باشا',
+        'د. سعيد القطوس', 'د. صالح قشوط', 'د. مفتاح أبو جلالة',
+        'م. منصف بادي', 'د. أيمن المحمودي', 'د. إبراهيم راشد',
+        'د. سعد عيسى', 'م. محرم الشعايفي', 'د. عثمان مخلوف',
+        'د. الطاهر الحشاني', 'د. عزالدين العربي', 'د. أشرف عمر',
+        'د. فاتح العليج', 'م. عادل كربان', 'د. علي السوري']
 
-#     class Meta:
-#         model = PeriodCourse
-#         fields = ('period',)
+    for advisor in advisors:
 
+        students = Student.objects.filter(
+            advisor=advisor,
+            status='E').order_by('first_name_ar')
+        context = {
+            'students': students,
+            'advisor': advisor
+        }
+        template = get_template('advisor_template.tex', using='jinja2')
+        rendered_tpl = template.render(context=context).encode('utf8')
+        # with open(os.path.join(
+        #         '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/tests/',
+        #         advisor), 'w') as texfile:
+        #     texfile.write(rendered_tpl)
+        # Python3 only. For python2 check out the docs!
+        directory = os.path.join(
+            '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/advisors_list_as_pdf/'
+        )
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        #tempdir = tempfile.mkdtemp()
+        # Create subprocess, supress output with PIPE and
+        # run latex twice to generate the TOC properly.
+        # Finally read the generated pdf.
+        for i in range(2):
+            process = Popen(
+                ['xelatex',
+                 '-jobname', advisor,
+                 '-output-directory', directory],
+                stdin=PIPE,
+                stdout=PIPE,
+            )
+            process.communicate(rendered_tpl)
 
-# class PeriodCourseViewSet(viewsets.ModelViewSet):
+    context = {
+        'students': (Student.objects.filter(status='E').exclude(advisor=None).
+                     order_by('first_name_ar')),
+    }
 
-#     model = PeriodCourse
-#     serializer_class = PeriodCourseSerialiser
-#     filter_class = PeriodCourseFilter
-
-#     def get_queryset(self):
-#         """
-#         """
-#         queryset = PeriodCourse.objects.all()
-#         student_registration = self.request.QUERY_PARAMS.get(
-#             'student_registration', None)
-#         restricted = self.request.QUERY_PARAMS.get('restricted', False)
-#         if (student_registration is not None):
-#             period = StudentRegistration.objects.get(
-#                 id=student_registration).period
-#             if not restricted:
-#                 queryset = queryset.filter(period=period)
-#         return queryset
+    template = get_template('advisor_list_template.tex', using='jinja2')
+    rendered_tpl = template.render(context=context).encode('utf8')
+    # with open(os.path.join(
+    #         '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/',
+    #         's'+registration_number), 'w') as texfile:
+    #     texfile.write(rendered_tpl)
+    # Python3 only. For python2 check out the docs!
+    directory = os.path.join(
+        '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/advisors_list_as_pdf/'
+    )
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    #tempdir = tempfile.mkdtemp()
+    # Create subprocess, supress output with PIPE and
+    # run latex twice to generate the TOC properly.
+    # Finally read the generated pdf.
+    for i in range(2):
+        process = Popen(
+            ['xelatex',
+             '-jobname', 'advisors_list',
+             '-output-directory', directory],
+            stdin=PIPE,
+            stdout=PIPE,
+        )
+        process.communicate(rendered_tpl)
+    # with open(os.path.join(tempdir, 'texput.pdf'), 'rb') as f:
+    #     pdf = f.read()
+    # r = HttpResponse(content_type='application/pdf')
+    # # r['Content-Disposition'] = 'attachment; filename=texput.pdf'
+    # r.write(pdf)
+    # return r
+    return None

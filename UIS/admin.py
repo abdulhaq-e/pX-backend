@@ -39,9 +39,9 @@ from UIS.models import *
 # class DegreeAdmin(admin.ModelAdmin):
 #     inlines = (DegreeCourseInline,)
 
-class CourseCatalogueAdmin(admin.ModelAdmin):
-    filter_horizontal = ('prerequisites', 'equalled_courses')
-# #     inlines = (TermCourseInline, DegreeCourseInline)
+# class CourseAdmin(admin.ModelAdmin):
+#     filter_horizontal = ('prerequisites', 'equalled_courses')
+# # #     inlines = (TermCourseInline, DegreeCourseInline)
 
 
 # # class TermAdmin(admin.ModelAdmin):
@@ -63,16 +63,16 @@ class CourseCatalogueAdmin(admin.ModelAdmin):
 
 # #admin.site.register(TimeTable)
 # #admin.site.register(TimeSlot)#, TimeSlotAdmin)
-admin.site.register(StudentEnrolment)
-admin.site.register(Student)#, StudentAdmin)
-admin.site.register(Department)
-admin.site.register(Faculty)
-admin.site.register(CourseCatalogue, CourseCatalogueAdmin)
-# # admin.site.register(CourseCatalogue)#, CourseCatalogueAdmin)
-admin.site.register(Degree)
-admin.site.register(Employee)
-# # #admin.site.register(Advisor)
-admin.site.register(Section)#, SectionAdmin)
+# admin.site.register(StudentEnrolment)
+# admin.site.register(Student)#, StudentAdmin)
+# admin.site.register(Department)
+# admin.site.register(Faculty)
+# admin.site.register(Course, CourseAdmin)
+# # # admin.site.register(Course)#, CourseAdmin)
+# admin.site.register(Degree)
+# admin.site.register(Employee)
+# # # #admin.site.register(Advisor)
+# admin.site.register(Section)#, SectionAdmin)
 # # #admin.site.register(DegreeCourse)
 # # admin.site.register(AcademicYear)
 # # admin.site.register(Term)#, TermAdmin)

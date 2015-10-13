@@ -1,0 +1,84 @@
+\documentclass[fontsize=14,headinclude=true, headsepline=true,
+footsepline=true]{scrartcl}
+\usepackage{scrlayer-scrpage}
+\usepackage[paperwidth=210mm,paperheight=297mm,left=25mm,right=25mm,
+          top=30mm,bottom=30mm,footskip=10mm,headsep=0mm]{geometry}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[inline]{enumitem}
+\setlist{nosep}
+%\usepackage[arabic,english]{babel}
+\setdefaultlanguage{english}
+\setotherlanguage[numerals=maghrib]{arabic}
+%\csname @Latintrue\endcsname
+
+\setmainfont[Ligatures=TeX]{Scheherazade}%{Scheherazade}%{Amiri}
+\setsansfont{Scheherazade}%Al-Kharashi 12}%Scheherazade}
+\newfontfamily\arabicfont[Script=Arabic,Scale=1.2]{Scheherazade}%Adobe Arabic}
+
+\pagestyle{scrheadings}
+\rohead*{\bfseries\textarabic{جامعة طرابلس\\كلية الهندسة\\قسم هندسة الطيران}}
+\lohead*{\bfseries\textarabic{مكتب الدراسة والامتحانات}}
+\cfoot*{}
+\lofoot*{\textarabic{تاريخ الإصدار: \today}}
+\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/UIS/jinja2/logo7.pdf}}
+%\chead*{\textenglish{whatever}}
+
+\AtBeginDocument{\begingroup}
+\AtEndDocument{\endgroup}
+
+\begin{document}
+\resetdefaultlanguage{arabic}
+  %{{ content }}
+
+%\title{\textarabic{نموذج الحجز المبدئي لفصل الخريف 2015 للعام الدراسي
+  %2015/2016}}
+%\date{}
+%\maketitle
+
+%\begin{Arabic}
+{
+\bfseries
+\centering{قوائم الإشراف الأكاديمي لفصل الخريف 2015 للعام الدراسي
+  2015/2016\\[0.5cm]\par
+}
+}
+
+{
+\centering{قائمة المشرف:
+
+  {{ advisor }} \par
+}
+}
+
+\begin{table}[!ht]
+   \renewcommand*{\arraystretch}{0.8}
+   % \setlength{\aboverulesep}{0pt}
+    %\setlength{\belowrulesep}{0pt}
+    %\setlength{\extrarowheight}{.75ex}
+  \centering
+  \begin{tabular}{cr}
+    \toprule
+    \multicolumn{1}{c}{\textbf{ت}} & \multicolumn{1}{c}{\textbf{اسم الطالب}}
+    \\
+    \midrule
+
+    {% for student in students %}
+    {{ loop.index }} & {{ student.get_full_name_ar() }} \\
+    {% endfor %}
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+%\vspace{0.2cm}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

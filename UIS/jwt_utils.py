@@ -1,7 +1,7 @@
 from datetime import datetime
 from rest_framework_jwt.settings import api_settings
 
-from UIS.serialisers import UserSerialiser
+# from UIS.api.serialisers import UserSerialiser
 
 
 def jwt_payload_handler(user):

@@ -2,7 +2,7 @@ import unicodecsv
 import re
 from django.db import IntegrityError
 from UIS.models.administration import Department
-from UIS.models.courses import CourseCatalogue
+from UIS.models.courses import Course
 
 codes = []
 
@@ -42,7 +42,7 @@ def courses_table_process(file, fieldnames, conflicts, verbosity):
                     pk=row['department'])
                 row.pop('department')
                 try:
-                    course, msg = CourseCatalogue.objects.get_or_create(
+                    course = Course.objects.get(
                         code=row['code'],
                         department=department,
                         level = int(
@@ -53,11 +53,17 @@ def courses_table_process(file, fieldnames, conflicts, verbosity):
                         credit=row['credit'],
                         name=row['name'].title()
                     )
-                except IntegrityError:
-                    conflicts.write("There is some kind of conflict"
-                                    "in this course ({}), perhaps the"
-                                    "name is different.\n"
-                                    .format(row['code']))
-                if verbosity > 1:
-                    if msg:
+                except Course.DoesNotExist:
+                    course = Course.objects.create(
+                        code=row['code'],
+                        department=department,
+                        level = int(
+                            re.search(
+                                '\d+', row['code']
+                            ).group()[0]
+                        )*100,
+                        credit=row['credit'],
+                        name=row['name'].title()
+                    )
+                    if verbosity > 1:
                         print("Created {}".format(row['code'],))

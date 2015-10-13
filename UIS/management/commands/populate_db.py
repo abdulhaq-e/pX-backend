@@ -1,7 +1,7 @@
 import random
 from django.core.management.base import BaseCommand
 from UIS.models.administration import Faculty, Department
-from UIS.models.courses import (CourseCatalogue, PeriodCourse,
+from UIS.models.courses import (Course, PeriodCourse,
                                 Section)
 from UIS.models.time_period import Period
 from UIS.models.users import UISUser
@@ -35,7 +35,7 @@ class Command(BaseCommand):
     def _create_courses(self):
         for j in [101, 201, 301, 401, 501]:
             for i in range(j, j+5):
-                CourseCatalogue.objects.create(
+                Course.objects.create(
                     code='AE'+str(i),
                     level=i/100*100,
                     name='Course '+str(i),
@@ -54,7 +54,7 @@ class Command(BaseCommand):
 
     def _create_period_courses(self):
         for i in Period.objects.exclude(period=0):
-            for j in CourseCatalogue.objects.all():
+            for j in Course.objects.all():
                 PeriodCourse.objects.create(period=i, course=j)
 
     def _create_sections(self):
@@ -95,7 +95,7 @@ class Command(BaseCommand):
                               credits_required=85,)
 
     def _create_degree_courses(self):
-        for i in CourseCatalogue.objects.all():
+        for i in Course.objects.all():
             DegreeCourse.objects.create(degree=Degree.objects.all()[0],
                                         course=i)
 

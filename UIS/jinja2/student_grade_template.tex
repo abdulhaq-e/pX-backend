@@ -1,0 +1,201 @@
+\documentclass[fontsize=14,headinclude=true, headsepline=true,
+footsepline=true]{scrartcl}
+\usepackage{scrlayer-scrpage}
+\usepackage[paperwidth=210mm,paperheight=297mm,left=25mm,right=25mm,
+          top=30mm,bottom=30mm,footskip=10mm,headsep=0mm]{geometry}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\usepackage{booktabs}
+\usepackage{eso-pic}
+
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[inline]{enumitem}
+\setlist{nosep}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{tablefootnote}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usetikzlibrary{patterns}
+%\usepackage[arabic,english]{babel}
+\setdefaultlanguage{english}
+\setotherlanguage[numerals=maghrib]{arabic}
+%\csname @Latintrue\endcsname
+
+\setmainfont[Ligatures=TeX]{Scheherazade}%{Scheherazade}%{Amiri}
+\setsansfont{Scheherazade}%Al-Kharashi 12}%Scheherazade}
+\newfontfamily\arabicfont[Script=Arabic,Scale=1.2]{Scheherazade}%Adobe Arabic}
+
+\pagestyle{scrheadings}
+\rohead*{\bfseries\textarabic{جامعة طرابلس\\كلية الهندسة\\قسم هندسة الطيران}}
+\lohead*{\bfseries\textarabic{مكتب الدراسة والامتحانات}}
+\cfoot*{}
+\lofoot*{\textarabic{تاريخ الإصدار: \today}}
+\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/UIS/jinja2/logo7.pdf}}
+
+%\chead*{\textenglish{whatever}}
+
+\AtBeginDocument{\begingroup}
+\AtEndDocument{\endgroup}
+
+\begin{document}
+
+\resetdefaultlanguage{arabic}
+\renewcommand*{\tableformat}{}
+\renewcommand*{\captionformat}{}
+  %{{ content }}
+
+%\title{\textarabic{نموذج الحجز المبدئي لفصل الخريف 2015 للعام الدراسي
+  %2015/2016}}
+%\date{}
+%\maketitle
+
+%\begin{Arabic}
+{
+\centering{\textbf{صحيفة أكاديمية}\par}
+}
+
+الاسم: {{ student.get_full_name_ar() }}
+
+رقم القيد: {{ student.registration_number }}
+
+اسم المشرف: {{ student.advisor }}
+
+{% if results.actual_period_count == 0 %}
+{% set pass_rate %}
+  0
+{% endset %}
+{% else %}
+{% set pass_rate = (results.cumulative_passed_credits /
+ results.actual_period_count) | round(0) %}
+{% endif %}
+
+{% if pass_rate == 0 %}
+{% set remaining_periods %}
+غير معروف
+{% endset %}
+{% set remaining_years %}
+غير معروف
+{% endset %}
+{% else %}
+{% set remaining_periods =
+ ((152-results.cumulative_passed_credits)/pass_rate) | round(0) %}
+{% set remaining_years = remaining_periods/2 %}
+{% endif  %}
+
+ \begin{table}[!ht]
+    \renewcommand*{\arraystretch}{0.8}
+%    % \setlength{\aboverulesep}{0pt}
+     %\setlength{\belowrulesep}{0pt}
+     %\setlength{\extrarowheight}{.75ex}
+   \centering
+\small
+\caption{إحصائيات}
+\begin{tabular}{cc}
+\toprule
+المعدل العام &  {{results.cumulative_GPA}}\% \\
+عدد الوحدات المسجلة & {{results.cumulative_registered_credits}} \\
+عدد الوحدات المنجزة & {{results.cumulative_passed_credits}} \\
+عدد الفصول الفعلية & {{results.actual_period_count}} \\
+معدل الإنجاز (وحدة/فصل) &
+{{pass_rate}} \\
+الفصول المتبقية للتخرج$^*$ &
+{{remaining_periods | int}} (عدد السنوات: {{remaining_years}})\\
+
+\bottomrule
+{\tiny $^*$هذا الرقم تقريبي فقط ومبني على معدل الإنجاز وباعتبار الوحدات اللازمة
+  للتخرج تساوي 152}
+\end{tabular}
+\end{table}
+ \begin{table}[!ht]
+    \renewcommand*{\arraystretch}{0.8}
+%    % \setlength{\aboverulesep}{0pt}
+     %\setlength{\belowrulesep}{0pt}
+     %\setlength{\extrarowheight}{.75ex}
+   \centering
+\small
+\caption{الدرجات}
+   \begin{tabular}{crc}
+
+     \toprule
+ت & \multicolumn{1}{c}{الفصل}
+ &المقررات \\
+     \midrule
+     {% for registration in registrations %}
+     {{ loop.index }} & {{ registration.period_degree.period |
+                        replace('Spring', 'ربيع') | replace('Autumn',
+                        'خريف') | replace('Summer', 'صيف') }} &
+     {% if registration.registration_type == 'NS' %}
+       وقف قيد
+     {% else %}
+\begin{tabular}[c]{*{
+  {{enrolments.filter(student_registration=registration).count()+1}} }c }
+    {% for enrolment in enrolments.filter(student_registration=registration) %}
+  {{ enrolment.code }} &
+{% endfor %}
+\\
+    {% for enrolment in enrolments.filter(student_registration=registration) %}
+  [{{ enrolment.grade | replace('None', '') }}] &
+{% endfor %}
+\end{tabular}
+
+     {% endif %}
+\\
+     {% endfor %}
+ \bottomrule
+\end{tabular}
+     \end{table}
+
+% \begin{figure}[!ht]
+% \centering
+% \begin{tikzpicture}[font=\small]
+% \centering
+%   \begin{axis}[
+%         ybar=2pt, axis on top,
+%         title={\textarabic{تغير المعدل الفصلي والتراكمي بالنسبة للفصل الدراسي}},
+%         bar width=5pt,
+%         x={2*5pt+2*5pt+2pt},
+%         enlarge x limits={abs=20pt+15pt},
+%         ymajorgrids, tick align=inside,
+%         major grid style={draw=white},
+%         enlarge y limits={value=.1,upper},
+%         ymin=0, ymax=100,
+%         axis x line*=bottom,
+%         axis y line*=right,
+%         y axis line style={opacity=0},
+%         tickwidth=0pt,
+%         %enlarge x limits=true,
+%         legend style={
+%             at={(0.5,1)},
+%             anchor=north,
+%             legend columns=-1,
+%             /tikz/every even column/.append style={column sep=0.5cm}
+%         },
+%         ylabel={\textarabic{المعدل} (\%)},
+%         xlabel={\textarabic{رقم الفصل}},
+%         symbolic x coords={ {% for registration in registrations %}{{loop.index}}, {% endfor %} },
+%           xtick=data,
+%             nodes near coords={
+%          \pgfmathprintnumber[precision=2]{\pgfplotspointmeta}
+%         }
+% ]
+
+%     \addplot [draw, pattern=north east lines] coordinates {
+% {% for registration in registrations %} ({{loop.index}}, {{registration.studentresult.GPA}})
+%       {% endfor %}
+% };
+%    \addplot [draw, pattern=north west lines] coordinates {
+%   {% for registration in registrations %} ({{loop.index}}, {{registration.studentresult.cumulative_GPA}})
+%       {% endfor %}
+% };
+% \legend{\textarabic{المعدل الفصلي}, \textarabic{المعدل التراكمي}}
+% \end{axis}
+% \end{tikzpicture}
+% \end{figure}
+\end{document}
+
+    %%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

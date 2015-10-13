@@ -13,7 +13,7 @@ from UIS.validators import validate_grade
 from django.db.models import F, Sum
 from UIS.managers import StudentEnrolmentManager
 from UIS.models.time_period import Period, PeriodDegree
-from UIS.models.courses import CourseCatalogue
+from UIS.models.courses import Course
 from UIS.models.users import Person
 from django.contrib.contenttypes.fields import GenericRelation
 from UIS.models.base_model import UISBaseModel
@@ -83,7 +83,7 @@ class Command(BaseCommand):
                     student_registration__student__registration_number=registration_number,
                     section__section_type__period_course__course__code=code,
                     student_registration__period_degree__period=self.period)
-                enrolment.grade = None
+                enrolment.grade = row['total']
                 enrolment.carry_marks = row['carry_marks']
                 enrolment.final_exam = row['final_exam']
                 enrolment.save()

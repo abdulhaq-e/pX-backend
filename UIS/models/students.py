@@ -13,11 +13,12 @@ from UIS.validators import validate_grade
 from django.db.models import F, Sum
 from UIS.managers import StudentEnrolmentManager
 from UIS.models.time_period import Period, PeriodDegree
-from UIS.models.courses import CourseCatalogue
+from UIS.models.courses import Course, CoursePrerequisite
 from UIS.models.users import Person
 from django.contrib.contenttypes.fields import GenericRelation
 from UIS.models.base_model import UISBaseModel
-#from UIS.models.administration import Department
+# from UIS.models.student_utils import get_results
+# from UIS.models.administration import Department
 # from UIS.models.courses import Section
 # from UIS.models.degrees import Degree
 # from UIS.models.employees import Employee
@@ -75,7 +76,10 @@ class Student(Person):
     STATUS = (
         ('E', 'Enrolled'),
         ('G', 'Graduated'),
-        ('D', 'Dropped Out')
+        ('L', 'Left'),  # إخلى طرفه
+        ('D', 'Dropped Out'),  # منقطع
+        ('T', 'Transferred'),
+        ('K', 'Kicked Out')
     )
     details = models.OneToOneField(Person, parent_link=True)
     registration_number = models.CharField(unique=True, max_length=255,
@@ -87,6 +91,9 @@ class Student(Person):
     periods = models.ManyToManyField('PeriodDegree',
                                      through='StudentRegistration',
                                      related_name='students')
+    # the below advisor field is EXTREMELY TEMPORARY
+    advisor = models.CharField(max_length=200, null=True,
+                               blank=True)
     # advisor = models.ForeignKey('Employee', blank=True,
     #                                  on_delete=models.PROTECT,
     #                                  verbose_name=_('Academic Advisor'))
@@ -132,10 +139,6 @@ class Student(Person):
     #                                 first_name=self.first_name,
     #                                 last_name=self.last_name,
     #                                 password=self.registration_number)
-
-    def __update_results(self, student_registration, data):
-        result = StudentResult.objects.create(
-            student_registration=student_registration, **data)
 
     def get_results(self):
         """
@@ -258,7 +261,7 @@ class Student(Person):
                     #     # data.update({
                     #     #     'student_registration': i}
                     #     print 'hah'
-                    #     self.__update_results(i, data)
+                    #     student.__update_results(i, data)
                 elif i.registration_type == 'R':
                     period_enrolments = enrolments.filter(
                         student_registration=i
@@ -328,156 +331,297 @@ class Student(Person):
 
             j += 1
 
+    def __update_results(self, student_registration, data):
+        return StudentResult.objects.create(
+            student_registration=student_registration, **data)
 
-#    def remaining_courses(self, passed_courses, DegreeCourse):
-        #return DegreeCourse.objects.exclude(course=self.passed_courses())
-
-    #def possilbke_wto_enroll(self):
-     #   return
 
     def get_enroled_courses(self):
 
-        return StudentEnrolment.objects.filter(student_registration__student=self).enroled()
+        return StudentEnrolment.objects.filter(
+            student_registration__student=self).enroled()
 
     def get_passed_courses(self):
 
-        return StudentEnrolment.objects.filter(student_registration__student=self).passed()
+        return StudentEnrolment.objects.filter(
+            student_registration__student=self).passed()
 
     def get_failed_courses(self):
 
-        return StudentEnrolment.objects.filter(student_registration__student=self).failed()
+        return StudentEnrolment.objects.filter(
+            student_registration__student=self).failed()
 
     def get_degree(self):
-
-        return self.studentregistration.last().degrees.all()[0]
+        """
+        """
+        return self.student_registrations.last().period_degree.degree
 
     def get_remaining_courses(self):
-        """"""
-
-        return self.studentregistration.last().degrees.all()[0].\
-            courses.all().exclude(
-            code__in=self.get_passed_courses().values_list(
-                'code', flat=True)
+        """
+        """
+        return (
+            self.get_degree().courses.all().
+            exclude(
+                code__in=self.get_passed_courses().values_list(
+                    'code', flat=True)).
+            exclude(
+                equalled_courses__code__in=self.get_passed_courses().
+                values_list(
+                    'code', flat=True)
+            )
         )
 
-    def get_enrolment_restriction(self):
+    def get_allowed_enrolments(self):
 
         #we first
-        # first_filter = CourseCatalogue.objects.exclude(pk=self.get_passed_courses()
+        # first_filter = Course.objects.exclude(pk=self.get_passed_courses()
         # )
-        requirements = [course for course in self.get_remaining_courses()
-                        if course.required_for.all()
-                    ]
+        self.allowed_enrolment.all().delete()
 
-        #the below is just magic :)
-        prerequisites_restriction = [
-            course for sub in [
-                requirement.required_for.all() for requirement in
-                requirements if requirement not in self.get_passed_courses()
-            ] for course in sub]
+        autumn2011 = Period.objects.get(academic_year='2011,2012', period=1)
+        post_autumn2011 = Period.objects.filter(
+            period__gte=autumn2011.period,
+            academic_year__gte=autumn2011.academic_year)
 
-        #magic isn't explained but here I go:
-        # we already got a list of courses which are required for other course
-        # and we called that...drum-roll...requirements!!
-        # now we get what courses depend on these requirements with:
-        # requirement.required_for.all() <--- we do that for each reqs
-        # then we check if the requirement is one of the passed_courses
-        # if it's NOT PASSED, we add the required_for.all() in a list
+        if (
+                self.student_registrations.first().period_degree.period not in
+                post_autumn2011
+        ):
+            remaining_courses = self.get_remaining_courses().exclude(
+                code='GS206')
+        else:
+            remaining_courses = self.get_remaining_courses()
 
-        level_restriction = []
-        if self.get_remaining_courses().filter(level=100).exists():
-            level_restriction.append(300)
-        if self.get_remaining_courses().filter(level=200).exists():
-            level_restriction.append(400)
-        if self.get_remaining_courses().filter(level=300).exists():
-            level_restriction.append(500)
+        four_years_high_school = ['022855391', '022804126', '022071317',
+                                  '021714174', '021714386', '02106341']
+        if self.registration_number in four_years_high_school:
+            remaining_courses = remaining_courses.exclude(
+                code__in=['GE127', 'GS115', 'GS115L', 'ME201', 'ME307'])
 
-        prereqs_restriction = [course.code for course in list(dict.fromkeys(prerequisites_restriction))]
-        restriction = dict(
-        [('Prerequisites Restriction', self.get_remaining_courses().filter(
-            code__in=prereqs_restriction)),
-         ('Level Restriction', self.get_remaining_courses().filter(
-             level__in=level_restriction))]
+        if self.registration_number == '021120007':
+            remaining_courses = remaining_courses.exclude(
+                code__in=['GE125', 'GE127', 'GE129', 'GH141',
+                          'GH150', 'GS101', 'GS115', 'GS111'])
+
+        prerequisites_restriction = (
+            CoursePrerequisite.objects.
+            filter(
+                course__in=remaining_courses
+            ).exclude(
+                prerequisite__code__in=self.get_passed_courses().values_list(
+                    'code', flat=True)
+            ).exclude(
+                prerequisite__equalled_courses__code__in=self.get_passed_courses().values_list(
+                    'code', flat=True)
+            )
         )
 
-        return restriction
+
+        allowed_enrolments = remaining_courses.exclude(
+            prerequisites__in=prerequisites_restriction)
+
+        general_courses = ['GS101', 'GS102', 'GS203',
+                           'GS204', 'GS111', 'GS112',
+                           # 'GS112L',
+                           'GS115',
+                           # 'GS115L',
+                           'GS200',
+                           'GS206',
+                           'GE121',
+                           'GE125',
+                           'GE127',
+                           'GE129',
+                           # 'GE129L',
+                           'GE133',
+                           'GE222',
+                           'GH141',
+                           'GH142',
+                           'GH150',
+                           'GH151',
+                           # 'GH152'
+        ]
+
+        if (
+                self.student_registrations.last().
+                studentresult.cumulative_passed_credits < 120
+        ) or (
+            remaining_courses.filter(
+                code__in=general_courses
+            ).exists()
+        ):
+            allowed_enrolments = allowed_enrolments.exclude(code='AE599')
+
+        excluded_from_regulations = ['GH152', 'GS112L',
+                                     'GS115L', 'GE129L',
+                                     'ME201', 'ME206',
+                                     'ME215']
+
+        elective = True
+        if remaining_courses.exclude(
+                code__in=excluded_from_regulations).filter(level=100).exists():
+            allowed_enrolments = allowed_enrolments.exclude(
+                level__in=[300, 400, 500])
+            elective = False
+        if remaining_courses.exclude(
+                code__in=excluded_from_regulations).filter(level=200).exists():
+            allowed_enrolments = allowed_enrolments.exclude(
+                level__in=[400, 500])
+            elective = False
+        if remaining_courses.exclude(
+                code__in=excluded_from_regulations).filter(level=300).exists():
+            allowed_enrolments = allowed_enrolments.exclude(level=500)
+            elective = False
+
+        if (self.get_passed_courses().values_list(
+                'code', flat=True).filter(code__startswith='AE555').count()
+            >= 6):
+            elective = False
+
+        if elective:
+            electives = Course.objects.filter(
+                code__in=['AE555ADS', 'AE555EPM', 'AE555INS', 'AE555SMS']
+            )
+            possible_electives = electives.exclude(
+                code__in=self.get_passed_courses().values_list(
+                    'code', flat=True))
+            for c in possible_electives:
+                StudentAllowedEnrolment.objects.create(
+                    student=self,
+                    course=c)
+            # self.allowed_enrolment.add(electives)
+
+        #for course in allowed_enrolments:
+        for c in allowed_enrolments:
+            StudentAllowedEnrolment.objects.create(
+                    student=self,
+                    course=c)
+
+        # self.allowed_enrolment.add(allowed_enrolments)
+
+        return Course.objects.filter(
+            studentallowedenrolment__in=self.allowed_enrolment.all()
+        )
+
+    def get_max_enrolled_credits(self):
+
+        return (
+            21 if self.student_registrations.last().
+            studentresult.cumulative_GPA > 75 else 18
+        )
+
+        # requirements = [course for course in self.get_remaining_courses()
+        #                 if course.required_for.all()
+        #             ]
+
+        # #the below is just magic :)
+        # prerequisites_restriction = [
+        #     course for sub in [
+        #         requirement.required_for.all() for requirement in
+        #         requirements if requirement not in self.get_passed_courses()
+        #     ] for course in sub]
+
+        # #magic isn't explained but here I go:
+        # # we already got a list of courses which are required for other course
+        # # and we called that...drum-roll...requirements!!
+        # # now we get what courses depend on these requirements with:
+        # # requirement.required_for.all() <--- we do that for each reqs
+        # # then we check if the requirement is one of the passed_courses
+        # # if it's NOT PASSED, we add the required_for.all() in a list
+
+        # level_restriction = []
+        # if self.get_remaining_courses().filter(level=100).exists():
+        #     level_restriction.append(300)
+        # if self.get_remaining_courses().filter(level=200).exists():
+        #     level_restriction.append(400)
+        # if self.get_remaining_courses().filter(level=300).exists():
+        #     level_restriction.append(500)
+
+        # prereqs_restriction = [course.code for course in list(dict.fromkeys(prerequisites_restriction))]
+        # restriction = dict(
+        # [('Prerequisites Restriction', self.get_remaining_courses().filter(
+        #     code__in=prereqs_restriction)),
+        #  ('Level Restriction', self.get_remaining_courses().filter(
+        #      level__in=level_restriction))]
+        # )
+
+        # return restriction
 
     def get_period_course_restriction(self):
         """"""
         pass
 
-    def get_progress(self):
-        results = self.get_prettier_results()[0]
-        degree = self.get_degree()
-        courses = self.get_degree().courses.all()
-        degree_progress = dict([(str(degree), {})])
-        degree_progress[str(degree)].update({'Courses': []})
-        degree_progress[str(degree)].update({'Statistics': {}})
+    # def get_progress(self):
+    #     results = self.get_prettier_results()[0]
+    #     degree = self.get_degree()
+    #     courses = self.get_degree().courses.all()
+    #     degree_progress = dict([(str(degree), {})])
+    #     degree_progress[str(degree)].update({'Courses': []})
+    #     degree_progress[str(degree)].update({'Statistics': {}})
 
-        progress = degree_progress[str(degree)]
+    #     progress = degree_progress[str(degree)]
 
-        for course in courses:
-            if (
-                self.get_passed_courses().filter(
-                    code=course.code).exists() or
-                    self.get_passed_courses().filter(
-                        course__in=course.equalled_courses.all())):
-                progress['Courses'].append({
-                    'code': course.code, 'name_en': course.name_en,
-                    'credit': course.credit, 'status': 'Passed'})
-            elif self.get_failed_courses().filter(code=course.code).exists():
-                progress['Courses'].append({
-                    'code': course.code, 'name_en': course.name_en,
-                    'credit': course.credit, 'status': 'Failed'})
-            elif self.get_enroled_courses().filter(
-            code=course.code, grade=None).exists():
-                progress['Courses'].append({
-                    'code': course.code, 'name_en': course.name_en,
-                    'credit': course.credit,
-                    'status': 'No grade'})
-            elif (self.get_enrolment_restriction(
-            )['Prerequisites Restriction'].filter(
-            code=course.code).exists() or self.get_enrolment_restriction(
-            )['Level Restriction'].filter(
-            code=course.code).exists()):
-                progress['Courses'].append({
-                    'code': course.code, 'name_en': course.name_en,
-                    'credit': course.credit,
-                    'status': 'Restricted'})
-            else:
-                progress['Courses'].append({
-                    'code': course.code, 'name_en': course.name_en,
-                    'credit': course.credit,
-                    'status': 'Possible to Enroll'})
+    #     for course in courses:
+    #         if (
+    #             self.get_passed_courses().filter(
+    #                 code=course.code).exists() or
+    #                 self.get_passed_courses().filter(
+    #                     course__in=course.equalled_courses.all())):
+    #             progress['Courses'].append({
+    #                 'code': course.code, 'name_en': course.name_en,
+    #                 'credit': course.credit, 'status': 'Passed'})
+    #         elif self.get_failed_courses().filter(code=course.code).exists():
+    #             progress['Courses'].append({
+    #                 'code': course.code, 'name_en': course.name_en,
+    #                 'credit': course.credit, 'status': 'Failed'})
+    #         elif self.get_enroled_courses().filter(
+    #         code=course.code, grade=None).exists():
+    #             progress['Courses'].append({
+    #                 'code': course.code, 'name_en': course.name_en,
+    #                 'credit': course.credit,
+    #                 'status': 'No grade'})
+    #         elif (self.get_enrolment_restriction(
+    #         )['Prerequisites Restriction'].filter(
+    #         code=course.code).exists() or self.get_enrolment_restriction(
+    #         )['Level Restriction'].filter(
+    #         code=course.code).exists()):
+    #             progress['Courses'].append({
+    #                 'code': course.code, 'name_en': course.name_en,
+    #                 'credit': course.credit,
+    #                 'status': 'Restricted'})
+    #         else:
+    #             progress['Courses'].append({
+    #                 'code': course.code, 'name_en': course.name_en,
+    #                 'credit': course.credit,
+    #                 'status': 'Possible to Enroll'})
 
-        # for i in results['Periods']:
-        cumulative_GPAs = [results['Results'][i]['Statistics']['cumulative_GPA'] for i in results['Periods']]
-        period_GPAs = [results['Results'][i]['Statistics']['GPA'] for i in results['Periods']]
-        periods = results['Periods']
-        last_period = results['Periods'][-1]
+    #     # for i in results['Periods']:
+    #     cumulative_GPAs = [results['Results'][i]['Statistics']['cumulative_GPA'] for i in results['Periods']]
+    #     period_GPAs = [results['Results'][i]['Statistics']['GPA'] for i in results['Periods']]
+    #     periods = results['Periods']
+    #     last_period = results['Periods'][-1]
 
-        actual_period_count = results['Results'][last_period]['Statistics']['actual_period_count']
-        completed_credits = courses.filter(
-            code__in=self.get_passed_courses().values_list(
-                'code', flat=True)).aggregate(Sum('credit')).values()[0]
-        required_credits = courses.aggregate(Sum('credit')).values()[0]
-        average_performance = completed_credits/float(actual_period_count)
-        estimated_number_of_periods = int(required_credits/average_performance)
-        completion_percentage = int(100*completed_credits/required_credits)
+    #     actual_period_count = results['Results'][last_period]['Statistics']['actual_period_count']
+    #     completed_credits = courses.filter(
+    #         code__in=self.get_passed_courses().values_list(
+    #             'code', flat=True)).aggregate(Sum('credit')).values()[0]
+    #     required_credits = courses.aggregate(Sum('credit')).values()[0]
+    #     average_performance = completed_credits/float(actual_period_count)
+    #     estimated_number_of_periods = int(required_credits/average_performance)
+    #     completion_percentage = int(100*completed_credits/required_credits)
 
-        progress['Statistics'].update(
-            {'GPA': period_GPAs,
-             'cumulative_GPA': cumulative_GPAs,
-             'actual_period_count': actual_period_count,
-             'completed_credits': completed_credits,
-             'required_credits': required_credits,
-             'average_performance': average_performance,
-             'estimated_number_of_periods': estimated_number_of_periods,
-             'periods': periods,
-             'completion_percentage': completion_percentage
-         })
+    #     progress['Statistics'].update(
+    #         {'GPA': period_GPAs,
+    #          'cumulative_GPA': cumulative_GPAs,
+    #          'actual_period_count': actual_period_count,
+    #          'completed_credits': completed_credits,
+    #          'required_credits': required_credits,
+    #          'average_performance': average_performance,
+    #          'estimated_number_of_periods': estimated_number_of_periods,
+    #          'periods': periods,
+    #          'completion_percentage': completion_percentage
+    #      })
 
-        return [degree_progress]
+    #     return [degree_progress]
 
         #return not_possible_to_enrol
 
@@ -521,7 +665,7 @@ class StudentRegistration(UISBaseModel):
 
 
     student = models.ForeignKey('Student', verbose_name=_('student'),
-                                related_name='studentregistration')
+                                related_name='student_registrations')
     # period = models.ForeignKey('Period', verbose_name=_('period'),
     #                            related_name='studentregistration')
     # suspension_type = models.CharField(
@@ -566,7 +710,7 @@ class StudentRegistration(UISBaseModel):
         )
 
     def __unicode__(self):
-        return unicode(self.student)
+        return unicode(self.student) + ' ' + unicode(self.period_degree.period)
 
 
 class StudentEnrolment(UISBaseModel):
@@ -601,26 +745,46 @@ class StudentEnrolment(UISBaseModel):
 
     class Meta:
         app_label = 'UIS'
-        unique_together = ('student_registration', 'section', 'grade')
+        unique_together = ('student_registration', 'section')
+        ordering = ('student_registration',)
 
     def __unicode__(self):
         return (unicode(self.student_registration) + ' '
                 + str(self.section) + str(self.grade))
 
-    def save(self, *args, **kwargs):
-        if self.grade is None:
-            if (self.carry_marks is None and self.final_exam is None):
-                pass
-            elif (self.carry_marks is None or self.final_exam is None):
-                raise IntegrityError
-            else:
-                self.grade = float(self.carry_marks) + float(self.final_exam)
-        elif self.grade is not None and (self.carry_marks is not None or self.final_exam is not None):
-            raise IntegrityError
 
-        super(StudentEnrolment, self).save(*args, **kwargs)
+class StudentEnrolmentLog(UISBaseModel):
+    """
+    a temp. table to store added/deleted enrolment, until I
+    find a better solution
+    """
+    enrolment_log_id = models.UUIDField(primary_key=True,
+                                    default=uuid.uuid4,
+                                    editable=False)
 
-        # Call the "real" save()
+    student_registration = models.ForeignKey('StudentRegistration',
+                                on_delete=models.PROTECT,
+                                related_name='studentenrolmentlog')
+    section = models.ForeignKey('Section', on_delete=models.PROTECT,
+                                related_name='studentenrolmentlog')
+    STATUS = (
+        ('A', 'Added'),
+        ('D', 'Dropped'),
+    )
+    enrolment_status = models.CharField(
+        max_length=1,
+        choices=STATUS,
+        default='A')
+
+    class Meta:
+        app_label = 'UIS'
+        unique_together = ('student_registration', 'section',
+                           'enrolment_status')
+
+    def __unicode__(self):
+        return (unicode(self.student_registration) + ' '
+                + str(self.section) + ' ' + str(self.enrolment_status))
+
 
 '''
 THE PARAGRAPH BELOW TRIES TO EXPLAIN MY THOUGHTS
@@ -681,6 +845,7 @@ THE STUDENT GRADE TABLE WILL ALSO HOLD CHANGES TO GRADES.
 
 #     def __unicode__(self):
 #         return unicode(self.student_registration) + ' ' + str(self.degree)
+
 class StudentResult(models.Model):
     '''
     THIS SHOULD BE A MATERIALIZED VIEW, I DON'T LIKE THE CURRENT IMPLEMENTATION.
@@ -718,3 +883,16 @@ class StudentResult(models.Model):
         )
 
         #         unique_together = ('student_registration', 'period_degree')
+
+class StudentAllowedEnrolment(models.Model):
+    '''
+    THIS SHOULD BE A MATERIALIZED VIEW, I DON'T LIKE THE CURRENT IMPLEMENTATION.
+    '''
+    student_allowed_enrolments_id =  models.UUIDField(primary_key=True,
+                                                      default=uuid.uuid4,
+                                                      editable=False)
+
+    student = models.ForeignKey('Student', related_name='allowed_enrolment')
+    course = models.ForeignKey('Course')
+    # permitted = models.BooleanField(default=True)
+    # primary = models.BooleanField(default=True)

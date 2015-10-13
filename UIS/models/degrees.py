@@ -7,7 +7,7 @@ from linguo.models import MultilingualModel
 from linguo.managers import MultilingualManager
 #from UIS.models.users import *
 #from UIS.models.administration import Department
-#from UIS.models.courses import CourseCatalogue
+#from UIS.models.courses import Course
 #from UIS.models.employees import *
 #from UIS.models.students import
 #from UIS.models.time_period import Period
@@ -97,8 +97,10 @@ n    - what is the point of the department field?: well, to associate a
         translate = ('name', )
 
     def __unicode__(self):
-        return self.name  # + _('First Intake') + \
-    #         ' (' + str(self.first_intake) + ')' or self.name_en
+        return (
+            self.name #+  _('First Intake') +
+            # ' (' + str(self.first_intake) + ')'
+        )
 
     # def natural_key(self):
     #     return (self.name_en,) + self.department.natural_key() + \
@@ -132,7 +134,7 @@ class DegreeCourse(models.Model):
                                         default=uuid.uuid4,
                                         editable=False)
 
-    course = models.ForeignKey('CourseCatalogue',
+    course = models.ForeignKey('Course',
                                blank=True,
                                on_delete=models.PROTECT)
     degree = models.ForeignKey('Degree', blank=True, on_delete=models.PROTECT)

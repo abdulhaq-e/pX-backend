@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='CourseCatalogue',
+            name='Course',
             fields=[
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('modified_at', models.DateTimeField(auto_now=True)),
@@ -42,6 +42,19 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name='CoursePrerequisite',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('modified_at', models.DateTimeField(auto_now=True)),
+                ('notes', models.TextField(blank=True)),
+                ('course', models.ForeignKey(to='UIS.Course')),
+            ],
+            options={
+                'abstract': False,
+            },
+        ),
+        migrations.CreateModel(
             name='Degree',
             fields=[
                 ('degree_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
@@ -58,7 +71,7 @@ class Migration(migrations.Migration):
             name='DegreeCourse',
             fields=[
                 ('degree_course_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, blank=True, to='UIS.CourseCatalogue')),
+                ('course', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, blank=True, to='UIS.Course')),
                 ('degree', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, blank=True, to='UIS.Degree')),
             ],
         ),
@@ -148,17 +161,17 @@ class Migration(migrations.Migration):
                 ('course_syllabus', models.TextField(blank=True)),
                 ('set_course_details_as_default', models.BooleanField(default=True)),
                 ('shared_groups', models.BooleanField(default=False)),
-                ('course', models.ForeignKey(to='UIS.CourseCatalogue')),
+                ('course', models.ForeignKey(to='UIS.Course')),
                 ('period', models.ForeignKey(to='UIS.Period')),
             ],
         ),
         migrations.CreateModel(
             name='PeriodCourseSectionType',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('modified_at', models.DateTimeField(auto_now=True)),
                 ('notes', models.TextField(blank=True)),
+                ('period_course_section_type_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('is_compulsary', models.BooleanField(default=True)),
                 ('period_course', models.ForeignKey(to='UIS.PeriodCourse')),
             ],
@@ -259,9 +272,22 @@ class Migration(migrations.Migration):
                 ('modified_at', models.DateTimeField(auto_now=True)),
                 ('notes', models.TextField(blank=True)),
                 ('enrolment_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('carry_marks', models.FloatField(blank=True, null=True, validators=[UIS.validators.validate_grade])),
+                ('final_exam', models.FloatField(blank=True, null=True, validators=[UIS.validators.validate_grade])),
                 ('grade', models.FloatField(blank=True, null=True, validators=[UIS.validators.validate_grade])),
                 ('published', models.BooleanField(default=False)),
                 ('section', models.ForeignKey(related_name='studentenrolment', on_delete=django.db.models.deletion.PROTECT, to='UIS.Section')),
+            ],
+        ),
+        migrations.CreateModel(
+            name='StudentEnrolmentLog',
+            fields=[
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('modified_at', models.DateTimeField(auto_now=True)),
+                ('notes', models.TextField(blank=True)),
+                ('enrolment_log_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('enrolment_status', models.CharField(default=b'A', max_length=1, choices=[(b'A', b'Added'), (b'D', b'Dropped')])),
+                ('section', models.ForeignKey(related_name='studentenrolmentlog', on_delete=django.db.models.deletion.PROTECT, to='UIS.Section')),
             ],
         ),
         migrations.CreateModel(
@@ -361,7 +387,7 @@ class Migration(migrations.Migration):
                 ('student_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
                 ('details', models.OneToOneField(parent_link=True, to='UIS.Person')),
                 ('registration_number', models.CharField(unique=True, max_length=255, verbose_name='Student UUID')),
-                ('status', models.CharField(default=b'E', max_length=1, choices=[(b'E', b'Enrolled'), (b'G', b'Graduated'), (b'D', b'Dropped Out')])),
+                ('status', models.CharField(default=b'E', max_length=1, choices=[(b'E', b'Enrolled'), (b'G', b'Graduated'), (b'L', b'Left'), (b'D', b'Dropped Out'), (b'T', b'Transferred'), (b'K', b'Kicked Out')])),
             ],
             bases=('UIS.person',),
         ),
@@ -373,7 +399,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='userprofile',
             name='user',
-            field=models.OneToOneField(null=True, to=settings.AUTH_USER_MODEL),
+            field=models.OneToOneField(to=settings.AUTH_USER_MODEL),
+        ),
+        migrations.AddField(
+            model_name='studentenrolmentlog',
+            name='student_registration',
+            field=models.ForeignKey(related_name='studentenrolmentlog', on_delete=django.db.models.deletion.PROTECT, to='UIS.StudentRegistration'),
         ),
         migrations.AddField(
             model_name='studentenrolment',
@@ -403,7 +434,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='period',
             name='courses',
-            field=models.ManyToManyField(to='UIS.CourseCatalogue', through='UIS.PeriodCourse', blank=True),
+            field=models.ManyToManyField(to='UIS.Course', through='UIS.PeriodCourse', blank=True),
         ),
         migrations.AddField(
             model_name='department',
@@ -431,34 +462,29 @@ class Migration(migrations.Migration):
             field=models.ManyToManyField(related_name='replaced_degrees_rel_+', to='UIS.Degree', blank=True),
         ),
         migrations.AddField(
-            model_name='coursecatalogue',
+            model_name='course',
             name='degrees',
             field=models.ManyToManyField(related_name='courses', through='UIS.DegreeCourse', to='UIS.Degree', blank=True),
         ),
         migrations.AddField(
-            model_name='coursecatalogue',
+            model_name='course',
             name='department',
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, blank=True, to='UIS.Department'),
         ),
         migrations.AddField(
-            model_name='coursecatalogue',
+            model_name='course',
             name='equalled_courses',
-            field=models.ManyToManyField(related_name='equalled_with', to='UIS.CourseCatalogue', blank=True),
+            field=models.ManyToManyField(related_name='equalled_with', to='UIS.Course', blank=True),
         ),
         migrations.AddField(
-            model_name='coursecatalogue',
+            model_name='course',
             name='first_taught',
             field=models.ForeignKey(related_name='first_taught_set', on_delete=django.db.models.deletion.PROTECT, verbose_name='First period given', blank=True, to='UIS.Period', null=True),
         ),
         migrations.AddField(
-            model_name='coursecatalogue',
+            model_name='course',
             name='last_tught',
             field=models.ForeignKey(related_name='last_taught_set', on_delete=django.db.models.deletion.PROTECT, verbose_name='Last period given', blank=True, to='UIS.Period', null=True),
-        ),
-        migrations.AddField(
-            model_name='coursecatalogue',
-            name='prerequisites',
-            field=models.ManyToManyField(related_name='required_for', to='UIS.CourseCatalogue', blank=True),
         ),
         migrations.AlterUniqueTogether(
             name='userrole',
@@ -470,8 +496,12 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(related_name='studentregistration', verbose_name='student', to='UIS.Student'),
         ),
         migrations.AlterUniqueTogether(
+            name='studentenrolmentlog',
+            unique_together=set([('student_registration', 'section', 'enrolment_status')]),
+        ),
+        migrations.AlterUniqueTogether(
             name='studentenrolment',
-            unique_together=set([('student_registration', 'section', 'grade')]),
+            unique_together=set([('student_registration', 'section')]),
         ),
         migrations.AddField(
             model_name='student',
@@ -508,7 +538,7 @@ class Migration(migrations.Migration):
             unique_together=set([('name', 'credits_required', 'department'), ('name_ar', 'credits_required', 'department')]),
         ),
         migrations.AlterUniqueTogether(
-            name='coursecatalogue',
+            name='course',
             unique_together=set([('code', 'name', 'department', 'first_taught', 'is_obsolete'), ('code', 'name_ar', 'department', 'first_taught', 'is_obsolete')]),
         ),
         migrations.AlterUniqueTogether(

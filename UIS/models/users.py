@@ -62,7 +62,6 @@ class UISUserManager(BaseUserManager, MultilingualManager):
 
 class UISUser(MultilingualModel, AbstractBaseUser,
               UISBaseModel, PermissionsMixin):
-
     """
 
     """

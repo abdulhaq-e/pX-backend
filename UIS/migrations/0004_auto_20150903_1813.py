@@ -2,19 +2,18 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-from django.conf import settings
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('UIS', '0001_initial'),
+        ('UIS', '0003_auto_20150903_1811'),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userprofile',
-            name='user',
-            field=models.OneToOneField(to=settings.AUTH_USER_MODEL),
+            model_name='studentregistration',
+            name='student',
+            field=models.ForeignKey(related_name='student_registrations', verbose_name='student', to='UIS.Student'),
         ),
     ]

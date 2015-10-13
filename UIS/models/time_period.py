@@ -29,7 +29,7 @@ from UIS.models.base_model import UISBaseModel
 #     # term = models.ForeignKey('Term', on_delete=models.PROTECT)
 #     is_compulsary = models.BooleanField(default=True)
 #     degrees = models.ManyToManyField('Degree', blank=True)
-#     courses = models.ManyToManyField('CourseCatalogue',
+#     courses = models.ManyToManyField('Course',
 #                                      through='PeriodCourse', blank=True)
 
 #     class Meta:
@@ -112,7 +112,7 @@ class Period(UISBaseModel):
     # to degrees!
     # degrees = models.ManyToManyField('Degree',
     #                                  through='PeriodDegree', blank=True)
-    courses = models.ManyToManyField('CourseCatalogue',
+    courses = models.ManyToManyField('Course',
                                      through='PeriodCourse', blank=True)
 
     # exclusivebooleanfield does not work when importing data, bug to be fixed!

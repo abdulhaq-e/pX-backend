@@ -15,7 +15,7 @@ from UIS.models.base_model import UISBaseModel
 #from UIS.models.time_period import Period
 
 
-class CourseCatalogue(MultilingualModel, UISBaseModel):
+class Course(MultilingualModel, UISBaseModel):
     '''
     an extremely important model, lots of design decisions
 
@@ -104,27 +104,30 @@ class CourseCatalogue(MultilingualModel, UISBaseModel):
     level = models.SmallIntegerField(null=True)
     name = models.CharField(max_length=200, blank=True,
                                verbose_name=_('Course name'))
-    is_compulsary = models.BooleanField(default=True)
+    # is_compulsary = models.BooleanField(default=True)
     is_obsolete = models.BooleanField(default=False)
-    first_taught = models.ForeignKey('Period',
-                                     verbose_name=_('First period given'),
-                                     on_delete=models.PROTECT,
-                                     blank=True, null=True,
-                                     related_name='first_taught_set')
-    last_tught = models.ForeignKey('Period',
-                                   verbose_name=_('Last period given'),
-                                   blank=True, null=True,
-                                   on_delete=models.PROTECT,
-                                   related_name='last_taught_set')
+    # first_taught and last_taught and is_compulsary removed 29/08/15
+    # is_compulsary should probably go to DegreeCourse
+    # first_taught = models.ForeignKey('Period',
+    #                                  verbose_name=_('First period given'),
+    #                                  on_delete=models.PROTECT,
+    #                                  blank=True, null=True,
+    #                                  related_name='first_taught_set')
+    # last_tught = models.ForeignKey('Period',
+    #                                verbose_name=_('Last period given'),
+    #                                blank=True, null=True,
+    #                                on_delete=models.PROTECT,
+    #                                related_name='last_taught_set')
     department = models.ForeignKey('Department', blank=True,
                                    on_delete=models.PROTECT)
     credit = models.SmallIntegerField()
     degrees = models.ManyToManyField('Degree',
                                      through='DegreeCourse', blank=True,
                                      related_name='courses')
-    prerequisites = models.ManyToManyField('self', symmetrical=False,
+    prerequisite_courses = models.ManyToManyField('self', symmetrical=False,
                                            blank=True,
-                                           related_name='required_for')
+                                           #related_name='required_for',
+                                           through='CoursePrerequisite')
     equalled_courses = models.ManyToManyField('self', symmetrical=False,
                                               blank=True,
                                               related_name='equalled_with')
@@ -135,12 +138,22 @@ class CourseCatalogue(MultilingualModel, UISBaseModel):
     class Meta:
         app_label = 'UIS'
         unique_together = (
-            ('code', 'name', 'department', 'first_taught', 'is_obsolete'),
+            ('code', 'name', 'department', 'credit',)
         )
         ordering = ['level', 'code']
         verbose_name = 'Course Catalogue'
         verbose_name_plural = 'Course Catalogue'
         translate = ('name',)
+
+
+class CoursePrerequisite(UISBaseModel):
+
+    course = models.ForeignKey('Course', related_name='prerequisites')
+    prerequisite = models.ForeignKey('Course', related_name='required_for')
+
+    def __unicode__(self):
+        return ' '.join(['Course:', str(self.course),
+                ', Prerequisite:', str(self.prerequisite)])
 
 
 class PeriodCourse(UISBaseModel):
@@ -160,7 +173,7 @@ class PeriodCourse(UISBaseModel):
                                         editable=False)
 
     period = models.ForeignKey('Period')
-    course = models.ForeignKey('CourseCatalogue')
+    course = models.ForeignKey('Course')
     course_description = models.TextField(blank=True)
     course_syllabus = models.TextField(blank=True)
     set_course_details_as_default = models.BooleanField(default=True)
@@ -191,6 +204,9 @@ class PeriodCourseSectionType(UISBaseModel):
     a tutorial section: non-compulsary.
     a lab: compulsary!
     """
+    period_course_section_type_id = models.UUIDField(primary_key=True,
+                                                     default=uuid.uuid4,
+                                                     editable=False)
 
     period_course = models.ForeignKey('PeriodCourse')
     section_type = models.ForeignKey('SectionType')
