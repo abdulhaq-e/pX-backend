@@ -1,0 +1,156 @@
+\documentclass[fontsize=15,headinclude=true, headsepline=false,
+footsepline=false]{scrartcl}
+\usepackage{scrlayer-scrpage}
+\usepackage[paperwidth=210mm,paperheight=297mm,left=20mm,right=30mm,
+          top=30mm,bottom=30mm,footskip=10mm,headsep=0mm]{geometry}
+\usepackage{fontspec}
+
+\usepackage{polyglossia}
+\usepackage{booktabs}
+\usepackage{eso-pic}
+
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[inline]{enumitem}
+\setlist{nosep}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{tablefootnote}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{dashrule}
+\usepackage{fancybox}
+\usetikzlibrary{patterns}
+%\usepackage[arabic,english]{babel}
+\setdefaultlanguage{english}
+\setotherlanguage[numerals=maghrib]{arabic}
+\usepackage[datesep=/, useregional=numeric]{datetime2}
+\usepackage[doublespacing]{setspace}
+%\csname @Latintrue\endcsname
+
+
+\setmainfont[Ligatures=TeX]{Scheherazade}%{Scheherazade}%{Amiri}
+\setsansfont{Scheherazade}%Al-Kharashi 12}%Scheherazade}
+\newfontfamily\arabicfont[Script=Arabic,Scale=1.1]{Scheherazade}%Adobe Arabic}
+
+\pagestyle{scrheadings}
+\rohead*{\bfseries\textarabic{جامعة طرابلس / كلية الهندسة\\[0.1pt ]منظومة
+    التسجيل والحجز المركزي}}
+\lohead*{ \begin{tabular}{c} {\bfseries\textarabic{رقم قيد الطالب} } \\
+ \doublebox{ \large {{ student.registration_number }} }
+          \end{tabular}
+        }
+\cfoot*{}
+%\lofoot*{\textarabic{تاريخ الإصدار: \today}}
+\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/UIS/jinja2/logo7.pdf}}
+
+%\chead*{\textenglish{whatever}}
+
+\AtBeginDocument{\begingroup}
+\AtEndDocument{\endgroup}
+
+\begin{document}
+\let\englishtoday\today
+\resetdefaultlanguage{arabic}
+%\begin{Arabic}
+\renewcommand*{\tableformat}{}
+\renewcommand*{\captionformat}{}
+  %{{ content }}
+
+%\title{\textarabic{نموذج الحجز المبدئي لفصل الخريف 2015 للعام الدراسي
+  %2015/2016}}
+%\date{}
+%\maketitle
+
+%\begin{Arabic}
+
+{
+\centering{\mbox{}\\[1.5pt]\textbf{استمارة التسجيل لبرنامج البكالوريوس (نموذج رقم 2)}\par}
+}
+
+
+%\textenglish{\today}
+\DTMsetup{useregional=numeric}
+\begin{table}[!ht]
+    \renewcommand*{\arraystretch}{1.2}
+%    % \setlength{\aboverulesep}{0pt}
+     %\setlength{\belowrulesep}{0pt}
+     %\setlength{\extrarowheight}{.75ex}
+   \centering
+%\small
+\begin{tabularx}{0.9\textwidth}{|>{\centering\arraybackslash}X|c|>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{4.5cm}|}
+\multicolumn{1}{c}{ } & \multicolumn{1}{c}{ } & \multicolumn{1}{l@{}}{\englishtoday} \\
+\hline
+ \textbf{اسم الطالب} & \textbf{الجنسية} & \textbf{القسم} \\
+ {{ student.get_full_name_ar() }} & {{ nationality }} &  هــــنــــدســـة الطــــيــــران \\
+\hline
+\end{tabularx}
+\end{table}
+
+{
+\centering
+\hspace*{\fill}
+\textbf{الفصل الدراسي: خريف 2015} \hfill \textbf{رقم الفصل: {{
+      results.period_count }} }
+\hspace*{\fill}
+}
+
+ \begin{table}[!ht]
+    \renewcommand*{\arraystretch}{1.2}
+%    % \setlength{\aboverulesep}{0pt}
+     %\setlength{\belowrulesep}{0pt}
+     %\setlength{\extrarowheight}{.75ex}
+   \centering
+%\small
+\begin{tabularx}{1.06\textwidth}{|r|c|>{\raggedright\arraybackslash}X@{}|c|c|>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{3cm}|}
+\hline
+ \textbf{\#} & \textbf{رقم المقرر} & \multicolumn{1}{c|}{\textbf{اسم المقرر}} & \textbf{الوحدات} & \textbf{المجموعة} & \textbf{ملاحظــــات} \\
+\hline
+{% for enrolment in enrolments %}
+{{ loop.index }} & {{ enrolment.code }} & { \textenglish{ {{
+                                          enrolment.name|replace('&','\&') }} } } & {{ enrolment.credit }} &
+{{ enrolment.group }} & \\
+\hline
+{% endfor %}
+\end{tabularx}\\[10pt]
+\begin{tabular}{|@{}r@{}|c|}
+\hline
+مجموع الوحدات الدراسية لهذا الفصل & {{ results.registered_credits}} \\
+\hline
+مجموع الوحدات الدراسية التراكمية & {{
+                                   results.cumulative_registered_credits}}
+  \\
+\hline
+مجموع الوحدات الدراسية الكلية المنجزة & {{
+                                        results.cumulative_passed_credits
+                                        }} \\
+\hline
+المعدل العامل بنهاية الفصل الدراسي السابق & {{ results.previous_GPA
+                                            }}\% \\
+\hline
+عدد الانذارات بنهاية الفصل السابق & {{ results.previous_warnings }}\\
+\hline
+\end{tabular}\\[10pt]
+\begin{tabular}{@{}c@{}@{}c@{}@{}c@{}@{}c@{}@{}c@{}@{}c@{}}
+\hspace{0.25cm}
+اسم
+الطالب: & \ldots\ldots\ldots\ldots\ldots\ldots\ldots\ldots\ldots\ldots\ldots\ldots$\;\;\;$
+التوقيع: &  \ldots\ldots\ldots\ldots\ldots\ldots\ldots$\;\;\;$
+التاريخ: &  \ldots\ldots\ldots\ldots\ldots\ldots
+\end{tabular}\\[20pt]
+\begin{tabular}{c}
+\textbf{اعتماد رئيس القسم} \\
+\ldots\ldots\ldots\ldots\ldots\ldots\ldots\ldots
+\end{tabular}\hfill
+\begin{tabular}{c}
+\textbf{اعتماد مسجل الكلية} \\
+\ldots\ldots\ldots\ldots\ldots\ldots\ldots\ldots
+\end{tabular}
+\end{table}
+
+\end{document}
+
+    %%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

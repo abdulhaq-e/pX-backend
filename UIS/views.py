@@ -7,7 +7,7 @@ from django.template import Context
 from django.template.loader import get_template
 from subprocess import Popen, PIPE
 import tempfile
-from .models.students import Student
+from .models.students import Student, StudentEnrolment
 
 
 def student_enrolment_as_pdf(request, registration_number):
@@ -75,6 +75,82 @@ def student_grade_as_pdf(request, registration_number):
         student.advisor = "بدون مشرف"
     directory = os.path.join(
         '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/student_grade/' +
+        student.advisor
+    )
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    #tempdir = tempfile.mkdtemp()
+    # Create subprocess, supress output with PIPE and
+    # run latex twice to generate the TOC properly.
+    # Finally read the generated pdf.
+    for i in range(2):
+        process = Popen(
+            ['xelatex',
+             '-jobname', ' '.join([student.get_full_name_ar(), ' - ',
+                                   registration_number]),
+             '-output-directory', directory],
+            stdin=PIPE,
+            stdout=PIPE,
+        )
+        process.communicate(rendered_tpl)
+    # with open(os.path.join(tempdir, 'texput.pdf'), 'rb') as f:
+    #      pdf = f.read()
+    # r = HttpResponse(content_type='application/pdf')
+    #  r['Content-Disposition'] = 'attachment; filename=texput.pdf'
+    # r.write(pdf)
+    # return r
+    return None
+
+
+def student_form2_pdf(request, registration_number, period_degree):
+
+    student = Student.objects.get(registration_number=registration_number)
+    student_registration = student.student_registrations.get(
+        period_degree=period_degree)
+    enrolments = StudentEnrolment.objects.filter(
+        student_registration=student_registration)
+    results = student_registration.studentresult
+    nationalities = {
+        'LY': 'ليبية',
+        'EG': 'مصرية',
+        'SD': 'سودانية',
+        'IQ': 'عراقية',
+        'TN': 'تونسية',
+        'PS': 'فلسطينية',
+        'SY': 'سورية',
+        'MA': 'مغربية',
+        'LB': 'لبنانية',
+        'YE': 'يمنية',
+        'PK': 'باكستانية',
+        'IR': 'إيرناية',
+        'ER': 'أريتيرية',
+        'TR': 'تركية',
+        'NE': 'نيجرية',
+        'MR': 'موريتانية',
+        'DZ': 'جزائرية',
+        'DJ': 'جيوبوتية',
+        'TD': 'تشادية',
+    }
+    nationality = nationalities[student.nationality]
+    context = {
+        'student': student,
+        'enrolments': enrolments,
+        'student_registration': student_registration,
+        'results': results,
+        'nationality': nationality
+    }
+    template = get_template('form2_template.tex', using='jinja2')
+    rendered_tpl = template.render(context=context).encode('utf8')
+
+    with open(os.path.join(
+            '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/tests/',
+            's'+registration_number+'.tex'), 'w') as texfile:
+        texfile.write(rendered_tpl)
+    # Python3 only. For python2 check out the docs!
+    if student.advisor is None:
+        student.advisor = "بدون مشرف"
+    directory = os.path.join(
+        '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/student_form2/' +
         student.advisor
     )
     if not os.path.exists(directory):

@@ -66,7 +66,12 @@ urlpatterns = [
         views.advisors_list_as_pdf,
         name='advisors_list_as_pdf'
     ),
-    # url('', include('django.contrib.auth.urls')),
+    # url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+
+    # url('', include('social.apps.django_app.urls', namespace='social')),
+    # url('', include('django.contrib.auth.urls', namespace='auth')),
+    url(r'^$', 'pX.views.home', name='home'),
+    url('', include('django.contrib.auth.urls')),
 
     # url(
     #     r'^$', 'pX.views.main'

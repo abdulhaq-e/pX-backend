@@ -10,4 +10,4 @@ class CourseSerialiser(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Course
-        exclude = ('department',)
+        exclude = ('department', 'degrees')

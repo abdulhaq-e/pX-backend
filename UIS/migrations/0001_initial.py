@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import models, migrations
+from django.db import migrations, models
 import django_countries.fields
 import UIS.models.users
 import UIS.validators
@@ -31,7 +31,6 @@ class Migration(migrations.Migration):
                 ('level', models.SmallIntegerField(null=True)),
                 ('name', models.CharField(max_length=200, verbose_name='Course name', blank=True)),
                 ('name_ar', models.CharField(max_length=200, verbose_name='Course name', blank=True)),
-                ('is_compulsary', models.BooleanField(default=True)),
                 ('is_obsolete', models.BooleanField(default=False)),
                 ('credit', models.SmallIntegerField()),
             ],
@@ -48,7 +47,8 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('modified_at', models.DateTimeField(auto_now=True)),
                 ('notes', models.TextField(blank=True)),
-                ('course', models.ForeignKey(to='UIS.Course')),
+                ('course', models.ForeignKey(related_name='prerequisites', to='UIS.Course')),
+                ('prerequisite', models.ForeignKey(related_name='required_for', to='UIS.Course')),
             ],
             options={
                 'abstract': False,
@@ -266,6 +266,13 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
+            name='StudentAllowedEnrolment',
+            fields=[
+                ('student_allowed_enrolments_id', models.UUIDField(default=uuid.uuid4, serialize=False, editable=False, primary_key=True)),
+                ('course', models.ForeignKey(to='UIS.Course')),
+            ],
+        ),
+        migrations.CreateModel(
             name='StudentEnrolment',
             fields=[
                 ('created_at', models.DateTimeField(auto_now_add=True)),
@@ -278,6 +285,9 @@ class Migration(migrations.Migration):
                 ('published', models.BooleanField(default=False)),
                 ('section', models.ForeignKey(related_name='studentenrolment', on_delete=django.db.models.deletion.PROTECT, to='UIS.Section')),
             ],
+            options={
+                'ordering': ('student_registration',),
+            },
         ),
         migrations.CreateModel(
             name='StudentEnrolmentLog',
@@ -388,6 +398,7 @@ class Migration(migrations.Migration):
                 ('details', models.OneToOneField(parent_link=True, to='UIS.Person')),
                 ('registration_number', models.CharField(unique=True, max_length=255, verbose_name='Student UUID')),
                 ('status', models.CharField(default=b'E', max_length=1, choices=[(b'E', b'Enrolled'), (b'G', b'Graduated'), (b'L', b'Left'), (b'D', b'Dropped Out'), (b'T', b'Transferred'), (b'K', b'Kicked Out')])),
+                ('advisor', models.CharField(max_length=200, null=True, blank=True)),
             ],
             bases=('UIS.person',),
         ),
@@ -454,12 +465,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='degree',
             name='minors',
-            field=models.ManyToManyField(related_name='minors_rel_+', to='UIS.Degree', blank=True),
+            field=models.ManyToManyField(related_name='_degree_minors_+', to='UIS.Degree', blank=True),
         ),
         migrations.AddField(
             model_name='degree',
             name='replaced_degrees',
-            field=models.ManyToManyField(related_name='replaced_degrees_rel_+', to='UIS.Degree', blank=True),
+            field=models.ManyToManyField(related_name='_degree_replaced_degrees_+', to='UIS.Degree', blank=True),
         ),
         migrations.AddField(
             model_name='course',
@@ -478,13 +489,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='course',
-            name='first_taught',
-            field=models.ForeignKey(related_name='first_taught_set', on_delete=django.db.models.deletion.PROTECT, verbose_name='First period given', blank=True, to='UIS.Period', null=True),
-        ),
-        migrations.AddField(
-            model_name='course',
-            name='last_tught',
-            field=models.ForeignKey(related_name='last_taught_set', on_delete=django.db.models.deletion.PROTECT, verbose_name='Last period given', blank=True, to='UIS.Period', null=True),
+            name='prerequisite_courses',
+            field=models.ManyToManyField(to='UIS.Course', through='UIS.CoursePrerequisite', blank=True),
         ),
         migrations.AlterUniqueTogether(
             name='userrole',
@@ -493,7 +499,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='studentregistration',
             name='student',
-            field=models.ForeignKey(related_name='studentregistration', verbose_name='student', to='UIS.Student'),
+            field=models.ForeignKey(related_name='student_registrations', verbose_name='student', to='UIS.Student'),
         ),
         migrations.AlterUniqueTogether(
             name='studentenrolmentlog',
@@ -502,6 +508,11 @@ class Migration(migrations.Migration):
         migrations.AlterUniqueTogether(
             name='studentenrolment',
             unique_together=set([('student_registration', 'section')]),
+        ),
+        migrations.AddField(
+            model_name='studentallowedenrolment',
+            name='student',
+            field=models.ForeignKey(related_name='allowed_enrolment', to='UIS.Student'),
         ),
         migrations.AddField(
             model_name='student',
@@ -539,7 +550,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name='course',
-            unique_together=set([('code', 'name', 'department', 'first_taught', 'is_obsolete'), ('code', 'name_ar', 'department', 'first_taught', 'is_obsolete')]),
+            unique_together=set([('code', 'name_ar', 'department', 'credit'), ('code', 'name', 'department', 'credit')]),
         ),
         migrations.AlterUniqueTogether(
             name='studentregistration',

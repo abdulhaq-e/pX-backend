@@ -53,10 +53,21 @@ def clean_up_transferred(conflict, simulate):
         ("022131753", "مالك الهدوي على  البوني"),
         ("022122880", "مودة المبروك كريشيان"),
         ("022132548", "نهلة عبد القادر سالم عبد القادر"),
-        # alaa didn't transfer, she dropped out intentionally
-        ("021100459", "الاء أيمن المحمودي"),
         ("022130718", "حسن رسمي الجعيدي"),
-        ("022132301", "مصطفى فرج مفتاح زايد")
+        ("022132301", "مصطفى فرج مفتاح زايد"),
+        ("022120020", "ابراهيم ناجى بلوز"),
+        ("022120079", "احمد سمير صميدة"),
+        ("022120565", "امل محمد قدقود"),
+        ("022132301", "مصطفى فرج مفتاح زايد"),
+        ("022140535", "تقوى نورى على عزو"),
+        ("022120301", "المعتصم يوسف الادريسي"),
+        ("02211614", "سرور على مسلم سلطان"),
+        ("022121181", "شعبان محمد شعبان كبوكة"),
+        ("022132522", "نزار نصر فرج الرقيعي"),
+        ("02211559", "عبد المعز عامر الزروق شلبي"),
+        ("022131943", "محمد طارق خليفة عسكر"),
+        ("022132361", "معز محمد حسن بن عيسى"),
+        ("022140169", "محمد محمود مصطفى بن يوسف"),
     ])
 
     conflict.write("\nI will change the status of the following student"
@@ -72,6 +83,30 @@ def clean_up_transferred(conflict, simulate):
             registration_number__in=TRANSFERRED.keys()
         ).update(
             status='T'
+        )
+
+
+def clean_up_left(conflict, simulate):
+
+    LEFT = dict([
+        ("021100459", "الاء أيمن المحمودي"),
+        ("021100370", "سالم عمران الارباح"),
+        ("022122947", "نزار عثمان سالم الصغير"),
+    ])
+
+    conflict.write("\nI will change the status of the following student"
+                   " to left out, this may not be accurate!!:\n")
+    i = 1
+    for student_number, student in LEFT.iteritems():
+        conflict.write("{}- Student: {}, {}\n"
+                       .format(i, student_number, student))
+        i += 1
+
+    if not simulate:
+        Student.objects.filter(
+            registration_number__in=LEFT.keys()
+        ).update(
+            status='L'
         )
 
 

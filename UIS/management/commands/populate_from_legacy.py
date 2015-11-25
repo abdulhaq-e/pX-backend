@@ -25,7 +25,6 @@ from UIS.models.base_model import UISBaseModel
 # from UIS.models.time_period import Period
 #from UIS.models.users import, UISUser
 
-
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 import random
@@ -62,7 +61,7 @@ from cleaning_up import (exclusions, clean_up_graduates,
                          clean_up_delete_students, get_results,
                          correct_gender, clean_up_dropped_out_students,
                          clean_up_transferred, clean_up_course_names,
-                         clean_up_equalled_courses)
+                         clean_up_equalled_courses, clean_up_left)
 
 
 class Command(BaseCommand):
@@ -525,6 +524,7 @@ class Command(BaseCommand):
         clean_up_transferred(file, simulate)
         clean_up_graduates(file, simulate)
         clean_up_delete_students(file, simulate)
+        clean_up_left(file, simulate)
         correct_gender(file)
         clean_up_dropped_out_students(file, simulate)
         clean_up_course_names()
@@ -545,6 +545,7 @@ class Command(BaseCommand):
         self._create_registration([self.FILES[0], self.FILES[1]])
         self._create_enrolments([self.FILES[0], self.FILES[1]])
         self._clean_up(simulate)
+        self._assign_advisors()
 
     def handle(self, *args, **options):
         self.verbosity = options.get('verbosity')

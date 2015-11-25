@@ -7,6 +7,10 @@ from django.utils.translation import ugettext_lazy as _
 from pX import settings
 import uuid
 from django.core.urlresolvers import reverse
+
+from django.db.models import Q
+
+
 from collections import OrderedDict
 #from UIS.querysets import StudentEnrolmentQuerySet
 from UIS.validators import validate_grade
@@ -209,7 +213,9 @@ class Student(Person):
                         'cumulative_registered_credits':
                         data['registered_credits'],
                         'cumulative_passed_credits':
-                        data['passed_credits']})
+                        data['passed_credits'],
+                        'previous_GPA': 0.0
+                    })
                     try:
                         data.update({
                             'cumulative_GPA':
@@ -219,6 +225,25 @@ class Student(Person):
                     except ZeroDivisionError:
                         data.update({
                             'cumulative_GPA': 0.0
+                        })
+
+                    if data['cumulative_GPA'] < 50:
+                        data.update({
+                            'warnings': 1,
+                            'previous_warnings': 0,
+                        })
+                    else:
+                        data.update({
+                            'warnings': 0,
+                            'previous_warnings': 0,
+                        })
+                    if data['cumulative_GPA'] < 35:
+                        data.update({
+                            'very_poor_warnings': 1,
+                        })
+                    else:
+                        data.update({
+                            'very_poor_warnings': 0,
                         })
 
                     self.__update_results(i, data)
@@ -234,7 +259,11 @@ class Student(Person):
                         'cumulative_scored_points': 0.0,
                         'cumulative_registered_credits': 0.0,
                         'cumulative_passed_credits': 0.0,
-                        'cumulative_GPA': 0.0
+                        'cumulative_GPA': 0.0,
+                        'previous_GPA': 0.0,
+                        'warnings': 0,
+                        'previous_warnings': 0,
+                        'very_poor_warnings': 0,
                     })
                     self.__update_results(i, data)
             elif j != 0:
@@ -252,7 +281,11 @@ class Student(Person):
                         'cumulative_scored_points': previous_result.cumulative_scored_points,
                         'cumulative_registered_credits': previous_result.cumulative_registered_credits,
                         'cumulative_passed_credits': previous_result.cumulative_passed_credits,
-                        'cumulative_GPA': previous_result.cumulative_GPA
+                        'cumulative_GPA': previous_result.cumulative_GPA,
+                        'previous_GPA': previous_result.cumulative_GPA,
+                        'warnings': previous_result.warnings,
+                        'previous_warnings': previous_result.warnings,
+                        'very_poor_warnings': previous_result.very_poor_warnings,
                     })
                     self.__update_results(i, data)
 
@@ -266,9 +299,18 @@ class Student(Person):
                     period_enrolments = enrolments.filter(
                         student_registration=i
                     )
+                    equalled_with = []
+                    for z in period_enrolments:
+                        equalled_with_temp = (
+                            z.section.section_type.period_course.
+                            course.equalled_with.all())
+                        if equalled_with_temp.exists():
+                            for equalled in equalled_with_temp:
+                                equalled_with.append(equalled.code)
                     repeated_enrolments_distinct = enrolments.failed().filter(
-                        code__in=period_enrolments.values_list(
-                            'code', flat=True)).filter(
+                        Q(code__in=period_enrolments.values_list(
+                            'code', flat=True)) | Q(code__in=equalled_with)
+                    ).filter(
                                 student_registration__in=[x for x in student_registrations[:j]]
                     ).order_by(
                         'section__section_type__period_course__course__code',
@@ -277,7 +319,6 @@ class Student(Person):
 
                     repeated_enrolments = StudentEnrolment.objects.filter(
                         pk__in=repeated_enrolments_distinct.values_list('pk', flat=True))
-
                     #results[j]['Enrolments'] = period_enrolments
                     #results[j]['Repeated Enrolments'] = repeated_enrolments
 
@@ -315,7 +356,8 @@ class Student(Person):
                         data['repeated_credits'],
                         'cumulative_passed_credits':
                         data['passed_credits'] +
-                        previous_result.cumulative_passed_credits
+                        previous_result.cumulative_passed_credits,
+                        'previous_GPA': previous_result.cumulative_GPA
                     })
                     try:
                         data.update({
@@ -327,6 +369,33 @@ class Student(Person):
                         data.update({
                             'cumulative_GPA': 0.0
                         })
+
+                    if data['cumulative_GPA'] < 50:
+                        data.update({
+                            'previous_warnings': previous_result.warnings,
+                            'warnings': previous_result.warnings + 1
+                        })
+                    else:
+                        data.update({
+                            'previous_warnings': previous_result.warnings,
+                            'warnings': 0
+                        })
+
+                    if data['cumulative_GPA'] < 35:
+                        data.update({
+                            'very_poor_warnings': 1,
+                        })
+                    else:
+                        data.update({
+                            'very_poor_warnings': 0,
+                        })
+
+                    if (data['very_poor_warnings'] >= 2 or
+                        data['warnings'] >= 3):
+                        data.update({
+                            'expulsion': True
+                        })
+
                     self.__update_results(i, data)
 
             j += 1
@@ -334,7 +403,6 @@ class Student(Person):
     def __update_results(self, student_registration, data):
         return StudentResult.objects.create(
             student_registration=student_registration, **data)
-
 
     def get_enroled_courses(self):
 
@@ -846,17 +914,18 @@ THE STUDENT GRADE TABLE WILL ALSO HOLD CHANGES TO GRADES.
 #     def __unicode__(self):
 #         return unicode(self.student_registration) + ' ' + str(self.degree)
 
+
 class StudentResult(models.Model):
+
     '''
     THIS SHOULD BE A MATERIALIZED VIEW, I DON'T LIKE THE CURRENT IMPLEMENTATION.
     '''
 
-    student_results_id =  models.UUIDField(primary_key=True,
-                                           default=uuid.uuid4,
-                                           editable=False)
+    student_results_id = models.UUIDField(primary_key=True,
+                                          default=uuid.uuid4,
+                                          editable=False)
 
     student_registration = models.OneToOneField('StudentRegistration')
-
 
     period_count = models.IntegerField()
     actual_period_count = models.IntegerField()
@@ -874,6 +943,12 @@ class StudentResult(models.Model):
 
     GPA = models.FloatField()
     cumulative_GPA = models.FloatField()
+    previous_GPA = models.FloatField()
+
+    warnings = models.IntegerField()
+    previous_warnings = models.IntegerField()
+    very_poor_warnings = models.IntegerField(default=0)
+    expulsion = models.IntegerField(default=False)
 
 
     class Meta:
@@ -883,6 +958,7 @@ class StudentResult(models.Model):
         )
 
         #         unique_together = ('student_registration', 'period_degree')
+
 
 class StudentAllowedEnrolment(models.Model):
     '''

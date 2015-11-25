@@ -310,3 +310,5 @@ def registration_table_process(file, fieldnames, conflicts, verbosity):
         i += 1
 
     StudentEnrolment.original.filter(grade=-1).update(grade=None)
+    StudentEnrolment.objects.exclude(
+        student_registration__registration_type='R').delete()

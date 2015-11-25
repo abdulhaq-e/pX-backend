@@ -11,4 +11,4 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     model = Course
     serializer_class = CourseSerialiser
-    queryset = Course.objects.all()
+    queryset = Course.objects.filter(code='AE302')
