@@ -1,3 +1,6 @@
+# *-*
+from __future__ import unicode_literals
+
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 # from django.contrib.contenttypes.fields import GenericForeignKey
@@ -11,6 +14,7 @@ from linguo.models import MultilingualModel
 #from UIS.models.users import UISUser
 from pX import settings
 
+import uuid
 
 class Role(MultilingualModel, UISBaseModel):
     """
@@ -53,8 +57,14 @@ class UserRole(UISBaseModel):
     role = models.ForeignKey('Role')
     content_object = GenericForeignKey('content_type', 'object_id')
     content_type = models.ForeignKey(ContentType)
-    object_id = models.CharField(max_length=255)
+    object_id = models.UUIDField()
 
     class Meta:
         app_label = 'UIS'
-q        unique_together = (('usr, role
+        unique_together = (('user', 'role', 'object_id'))
+
+    def __unicode__(self):
+        return ' '.join([unicode(self.user),
+                         unicode(self.role),
+                         unicode(self.content_object)
+        ])

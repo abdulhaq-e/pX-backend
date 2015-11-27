@@ -1,18 +1,13 @@
+# -*- coding: utf-8 -*-
 import uuid
 
 from django.db import models
+
 from django.utils.translation import ugettext_lazy as _
 from linguo.models import MultilingualModel
 
 from UIS.managers import MultilingualCourseManager
 from UIS.models.base_model import UISBaseModel
-
-
-#from UIS.models.administration import Department
-#from UIS.models import degrees
-#from UIS.models.employees import Employee
-#from UIS.models.students import *
-#from UIS.models.time_period import Period
 
 
 class Course(MultilingualModel, UISBaseModel):

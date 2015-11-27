@@ -9,7 +9,6 @@ from django.db import models
 #         super(ValidateOnSaveMixin, self).save(force_insert, force_update,
 #                                               **kwargs)
 
-
 class UISBaseModel(models.Model):
     """
     """

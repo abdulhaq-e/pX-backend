@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Sum, Count, Aggregate, F
+from django.db.models import Sum, F
 
 
 class StudentEnrolmentQuerySet(models.QuerySet):
