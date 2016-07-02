@@ -24,7 +24,7 @@ footsepline=true]{scrartcl}
 \lohead*{\bfseries\textarabic{مكتب الدراسة والامتحانات}}
 \cfoot*{}
 \lofoot*{\textarabic{تاريخ الإصدار: \today}}
-\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/UIS/jinja2/logo7.pdf}}
+\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/pX/forms/jinja2/logo.pdf}}
 %\chead*{\textenglish{whatever}}
 
 \AtBeginDocument{\begingroup}
@@ -67,7 +67,7 @@ footsepline=true]{scrartcl}
     \midrule
 
     {% for student in students %}
-    {{ loop.index }} & {{ student.get_full_name_ar() }} \\
+    {{ loop.index }} & {{ student.full_name_ar }} \\
     {% endfor %}
     \bottomrule
   \end{tabular}

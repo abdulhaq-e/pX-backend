@@ -26,7 +26,8 @@ class PeriodRegistration(pXBaseModel):
       the solution is: run something like a cron job to add 'dropped' status to
       all students who didn't register/suspend after a period of time!
 
-    - on 3:15 (a.m.), 16/05/15, i moved most things that i thought should belong
+    - on 3:15 (a.m.), 16/05/15, i moved most things that i thought should
+      belong
       to studentregistration to student degree. I think this bests model
       multiple degrees. I don't know why I'm obsessed by multiple degrees.
       it won't happen in the near feature in our ****** universities.
@@ -54,8 +55,8 @@ class PeriodRegistration(pXBaseModel):
         (NORMAL, _('Normal Suspension')),
     )
     REGISTERED = 'R'
-    #SUSPENDED = 'S'
-    DROPPED = 'D' # منطقع
+    # SUSPENDED = 'S'
+    DROPPED = 'D'  # منطقع
     REGISTRATION_NOT_COMPLETED = 'RNC'
     REGISTRATION_TYPE = (
         (_('Suspended'), SUSPENSION_TYPE),

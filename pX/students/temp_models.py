@@ -8,7 +8,8 @@ import uuid
 
 class StudentResult(models.Model):
     '''
-    THIS SHOULD BE A MATERIALIZED VIEW, I DON'T LIKE THE CURRENT IMPLEMENTATION.
+    THIS SHOULD BE A MATERIALIZED VIEW,
+    I DON'T LIKE THE CURRENT IMPLEMENTATION.
     '''
 
     student_results_id = models.UUIDField(primary_key=True,
@@ -46,3 +47,18 @@ class StudentResult(models.Model):
         ordering = (
             'period_registration',
         )
+
+
+class StudentAllowedEnrolment(models.Model):
+    '''
+    THIS SHOULD BE A MATERIALIZED VIEW,
+    I DON'T LIKE THE CURRENT IMPLEMENTATION.
+    '''
+    student_allowed_enrolments_id = models.UUIDField(primary_key=True,
+                                                     default=uuid.uuid4,
+                                                     editable=False)
+
+    student = models.ForeignKey('Student', related_name='allowed_enrolment')
+    course = models.ForeignKey("courses.Course")
+    # permitted = models.BooleanField(default=True)
+    # primary = models.BooleanField(default=True)

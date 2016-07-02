@@ -1,33 +1,48 @@
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 
-from rest_framework import serializers
+from rest_framework_json_api import serializers
 
-from ..users.models import Employee, Person
+from ..users.models import Person #Employee, pXUser
 
 
-class PersonSerialiser(serializers.HyperlinkedModelSerializer):
+class PersonSerialiser(serializers.ModelSerializer):
 
-    full_name_ar = serializers.CharField(source='full_name_ar')
-    full_name = serializers.CharField(source='full_name')
+    # full_name_ar = serializers.CharField()
+    # full_name = serializers.CharField()
 
     class Meta:
         model = Person
-        fields = ('url', 'first_name_ar', 'last_name_ar',
+        fields = ('first_name_ar', 'last_name_ar',
                   'first_name', 'last_name',
                   'full_name_ar', 'full_name')
 
 
-class EmployeeSerialiser(PersonSerialiser):
+# class UserSerialiser(serializers.HyperlinkedModelSerializer):
+#
+#     profile_id = serializers.UUIDField(source='userprofile.profile.pk',
+#                                          read_only=True)
+#     # profile = StudentSerialiser(source='userprofile.profile',
+#     #                               read_only=True)
+#     profile_type = serializers.CharField(source='userprofile.profile_type')
+#     roles = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+#
+#     class Meta:
+#         model = pXUser
+#         fields = ('url', 'email', 'roles', 'profile_type', 'profile_id',)
 
-    # student = serializers.HyperlinkedIdentityField(
-    #     view_name='student-detail',
-    #     lookup_field='student.registration_number',
-    # )
-
-    class Meta:
-        model = Employee
-        # fields = ('student',)
+#
+#
+# class EmployeeSerialiser(PersonSerialiser):
+#
+#     # student = serializers.HyperlinkedIdentityField(
+#     #     view_name='student-detail',
+#     #     lookup_field='student.registration_number',
+#     # )
+#
+#     class Meta:
+#         model = Employee
+#         # fields = ('student',)
 
 
 

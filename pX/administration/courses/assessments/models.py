@@ -7,7 +7,6 @@ from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 
-from .validators import AssessmentGradeValidator
 from .utils import send_assessment_result_email
 
 from ....base.models import pXBaseModel
@@ -83,19 +82,6 @@ class AssessmentResult(pXBaseModel):
                               )
     _grade = models.FloatField(null=True)
     hidden = models.BooleanField(default=False)
-
-    def save(self, *args, **kwargs):
-        self.grade = None
-
-        if self._grade is None:
-            return super(AssessmentResult, self).save(*args, **kwargs)
-        else:
-            AssessmentGradeValidator(self._grade,
-                                     self.assessment.total_grade)()
-            if not self.hidden and self.assessment.result_status == 'P':
-                self.grade = self._grade
-
-            return super(AssessmentResult, self).save(*args, **kwargs)
 
     def send_email(self):
         send_assessment_result_email(self)

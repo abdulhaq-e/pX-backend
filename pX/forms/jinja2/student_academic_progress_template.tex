@@ -17,6 +17,7 @@ footsepline=true]{scrartcl}
 \usepackage{tablefootnote}
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
+\usepackage{multirow}
 \usetikzlibrary{patterns}
 %\usepackage[arabic,english]{babel}
 \setdefaultlanguage{english}
@@ -32,7 +33,7 @@ footsepline=true]{scrartcl}
 \lohead*{\bfseries\textarabic{مكتب الدراسة والامتحانات}}
 \cfoot*{}
 \lofoot*{\textarabic{تاريخ الإصدار: \today}}
-\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/UIS/jinja2/logo7.pdf}}
+\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/pX/forms/jinja2/logo.pdf}}
 
 %\chead*{\textenglish{whatever}}
 
@@ -56,7 +57,7 @@ footsepline=true]{scrartcl}
 \centering{\textbf{صحيفة أكاديمية}\par}
 }
 
-الاسم: {{ student.get_full_name_ar() }}
+الاسم: {{ student.full_name_ar }}
 
 رقم القيد: {{ student.registration_number }}
 
@@ -80,9 +81,37 @@ footsepline=true]{scrartcl}
 {% endset %}
 {% else %}
 {% set remaining_periods =
- ((152-results.cumulative_passed_credits)/pass_rate) | round(0) %}
+ ((152-results.cumulative_passed_credits)/pass_rate) | round(0) | int %}
 {% set remaining_years = remaining_periods/2 %}
 {% endif  %}
+
+
+{% if results.passed_credits == 0 %}
+{% set remaining_periods_current %}
+غير معروف
+{% endset %}
+{% set remaining_years_current %}
+غير معروف
+{% endset %}
+{% else %}
+{% set remaining_periods_current =
+ ((152-results.cumulative_passed_credits)/results.passed_credits) | round(0) | int %}
+{% set remaining_years_current = remaining_periods_current/2 %}
+{% endif  %}
+
+{% if pass_rate_three == 0 %}
+{% set remaining_periods_three %}
+غير معروف
+{% endset %}
+{% set remaining_years_three %}
+غير معروف
+{% endset %}
+{% else %}
+{% set remaining_periods_three =
+ ((152-results.cumulative_passed_credits)/pass_rate_three) | round(0) | int %}
+{% set remaining_years_three = remaining_periods_three/2 %}
+{% endif  %}
+
 
  \begin{table}[!ht]
     \renewcommand*{\arraystretch}{0.8}
@@ -92,20 +121,24 @@ footsepline=true]{scrartcl}
    \centering
 \small
 \caption{إحصائيات}
-\begin{tabular}{cc}
+\begin{tabular}{cccc}
 \toprule
-المعدل العام &  {{results.cumulative_GPA}}\% \\
-عدد الوحدات المسجلة & {{results.cumulative_registered_credits}} \\
-عدد الوحدات المنجزة & {{results.cumulative_passed_credits}} \\
-عدد الفصول الفعلية & {{results.actual_period_count}} \\
-معدل الإنجاز (وحدة/فصل) &
-{{pass_rate}} \\
-الفصول المتبقية للتخرج$^*$ &
-{{remaining_periods | int}} (عدد السنوات: {{remaining_years}})\\
+\multicolumn{2}{c}{المعدل العام} &  \multicolumn{2}{c}{ {{results.cumulative_GPA}}\% } \\
+\multicolumn{2}{c}{عدد الوحدات المسجلة} & \multicolumn{2}{c}{ {{results.cumulative_registered_credits}} }\\
+\multicolumn{2}{c}{ عدد الوحدات المنجزة} & \multicolumn{2}{c}{ {{results.cumulative_passed_credits}} }\\
+\multicolumn{2}{c}{ عدد الفصول الفعلية} & \multicolumn{2}{c}{ {{results.actual_period_count}} }\\
+\midrule
+\multicolumn{2}{c}{\textbf{معدل الإنجاز (وحدة/فصل)}} & \multicolumn{2}{c}{\textbf{الفصول المتبقية للتخرج*}} \\
+\multicolumn{2}{c}{المتوسط الكلي: {{pass_rate}} } &
+\multicolumn{2}{c}{ {{remaining_periods}} (عدد السنوات: {{remaining_years}}) }\\
+\multicolumn{2}{c}{متوسط الفصول الثلاثة الماضية: {{pass_rate_three}} } &
+\multicolumn{2}{c}{ {{remaining_periods_three}} (عدد السنوات: {{remaining_years_three}}) }\\
+\multicolumn{2}{c}{للفصل الماضي: {{results.passed_credits}} } &
+\multicolumn{2}{c}{ {{remaining_periods_current}} (عدد السنوات: {{remaining_years_current}}) }\\
 
 \bottomrule
-{\tiny $^*$هذا الرقم تقريبي فقط ومبني على معدل الإنجاز وباعتبار الوحدات اللازمة
-  للتخرج تساوي 152}
+{\footnotesize $^*$هذا الرقم تقريبي فقط ومبني على معدل الإنجاز وباعتبار الوحدات اللازمة
+  للتخرج = 152}
 \end{tabular}
 \end{table}
  \begin{table}[!ht]
@@ -116,29 +149,51 @@ footsepline=true]{scrartcl}
    \centering
 \small
 \caption{الدرجات}
-   \begin{tabular}{crc}
-
+   \begin{tabular}{@{}c@{}r@{}c@{}cc@{}}
      \toprule
-ت & \multicolumn{1}{c}{الفصل}
- &المقررات \\
+\multirow{2}{*}{ت} & \multirow{2}{*}{ الفصل }
+ &\multirow{2}{*}{المقررات} & \multicolumn{2}{c}{المعدل} \\
+& & &الفصلي & التراكمي \\
      \midrule
      {% for registration in registrations %}
-     {{ loop.index }} & {{ registration.period_degree.period |
+     {{ loop.index }}. & {{ registration.period |
                         replace('Spring', 'ربيع') | replace('Autumn',
                         'خريف') | replace('Summer', 'صيف') }} &
      {% if registration.registration_type == 'NS' %}
        وقف قيد
      {% else %}
 \begin{tabular}[c]{*{
-  {{enrolments.filter(student_registration=registration).count()+1}} }c }
-    {% for enrolment in enrolments.filter(student_registration=registration) %}
-  {{ enrolment.code }} &
+  {{enrolments.filter(period_registration=registration).count()+1}} }{@{}c} }
+    {% for enrolment in enrolments.filter(period_registration=registration) %}
+  \textenglish{ {{ enrolment.code }} }&
 {% endfor %}
 \\
-    {% for enrolment in enrolments.filter(student_registration=registration) %}
+    {% for enrolment in enrolments.filter(period_registration=registration) %}
   [{{ enrolment.grade | replace('None', '') }}] &
 {% endfor %}
-\end{tabular}
+\end{tabular} &
+{%if loop.index == 1 %}
+  {{registration.student_result.GPA}}  $\Leftrightarrow$
+ & {{registration.student_result.cumulative_GPA}}  $\Leftrightarrow$
+  {% else %}
+  {{registration.student_result.GPA}}
+{% if registration.student_result.GPA > registrations[loop.index0-1].student_result.GPA  %}
+$\Uparrow$
+{% elif registration.student_result.GPA < registrations[loop.index0-1].student_result.GPA %}
+$\Downarrow$
+{% else %}
+$\Leftrightarrow$
+{% endif %}
+ & {{registration.student_result.cumulative_GPA}}
+ {% if registration.student_result.cumulative_GPA > registrations[loop.index0-1].student_result.cumulative_GPA %}
+ $\Uparrow$
+ {% elif registration.student_result.cumulative_GPA < registrations[loop.index0-1].student_result.cumulative_GPA %}
+ $\Downarrow$
+ {% else %}
+ $\Leftrightarrow$
+ {% endif %}
+
+{% endif %}
 
      {% endif %}
 \\
@@ -146,7 +201,7 @@ footsepline=true]{scrartcl}
  \bottomrule
 \end{tabular}
      \end{table}
-
+%
 % \begin{figure}[!ht]
 % \centering
 % \begin{tikzpicture}[font=\small]
@@ -170,7 +225,7 @@ footsepline=true]{scrartcl}
 %             at={(0.5,1)},
 %             anchor=north,
 %             legend columns=-1,
-%             /tikz/every even column/.append style={column sep=0.5cm}
+%             /tikz/every even column/.append style={font=\small,column sep=0.5cm}
 %         },
 %         ylabel={\textarabic{المعدل} (\%)},
 %         xlabel={\textarabic{رقم الفصل}},
@@ -180,13 +235,13 @@ footsepline=true]{scrartcl}
 %          \pgfmathprintnumber[precision=2]{\pgfplotspointmeta}
 %         }
 % ]
-
+%
 %     \addplot [draw, pattern=north east lines] coordinates {
-% {% for registration in registrations %} ({{loop.index}}, {{registration.studentresult.GPA}})
+% {% for registration in registrations %} ({{loop.index}}, {{registration.student_result.GPA}})
 %       {% endfor %}
 % };
 %    \addplot [draw, pattern=north west lines] coordinates {
-%   {% for registration in registrations %} ({{loop.index}}, {{registration.studentresult.cumulative_GPA}})
+%   {% for registration in registrations %} ({{loop.index}}, {{registration.student_result.cumulative_GPA}})
 %       {% endfor %}
 % };
 % \legend{\textarabic{المعدل الفصلي}, \textarabic{المعدل التراكمي}}

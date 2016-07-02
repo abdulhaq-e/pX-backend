@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function, unicode_literals
 
 import unicodecsv
 from general_handlers import registration_number_handler
@@ -36,9 +37,11 @@ def students_table_write(file, fieldnames, rows, db, exclusions):
             registration_number_handler(row)
             if row['registration_number'] in exclusions[db]['STUDENTS']:
                 continue
-            if row['registration_number'] in exclusions['DUPLICATES']['STUDENTS']:
+            if (
+                row['registration_number'] in
+                exclusions['DUPLICATES']['STUDENTS']
+            ):
                 continue
-            #or else
             writer.writerow(row)
 
 
@@ -140,3 +143,43 @@ def students_table_process(file, fieldnames, conflicts, verbosity):
             "{}- Student: {}\n"
             .format(i, student,))
         i += 1
+
+
+def create_users(config):
+    conflicts_file = (config['LOGS_FILES_LOCATION'] + '/' +
+                      'STUDENT_CONFLICTS.txt')
+    conflicts = open(conflicts_file, 'w')
+
+    for file in config['FILES']:
+        prepared_file = (
+            config['PREPARED_FILES_LOCATION'] + '/' + 'students' +
+            '_' + file[:-4] + '.csv'
+        )
+        students_table_process(
+            prepared_file,
+            config['FIELDS'][file].get('process_fields').get('STUDENTS'),
+            conflicts,
+            config['VERBOSITY'])
+
+    conflicts.close()
+
+
+def assign_advisors(config):
+
+    files = ['advisors_NEWNEW.csv']
+    for file in files:
+        with open(config['MDE_FILE_LOCATION'] + '/cleaning/' + file, 'rb') as csvfile:
+            reader = unicodecsv.DictReader(
+                csvfile, fieldnames=['registration_number',
+                                     'student_name', 'advisor'])
+            for row in reader:
+                registration_number_handler(row)
+                if config['VERBOSITY'] > 1:
+                        print("I'll now process {}, {}"
+                              .format(row['registration_number'],
+                                      row['student_name']))
+                student = Student.objects.get(
+                    registration_number=row['registration_number']
+                )
+                student.advisor = row['advisor']
+                student.save()

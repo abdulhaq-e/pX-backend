@@ -3,34 +3,33 @@ from __future__ import division, unicode_literals
 
 import uuid
 
-from copy import deepcopy
-from collections import OrderedDict
+# from copy import deepcopy
+# from collections import OrderedDict
 
-from django.db import models, IntegrityError
+from django.db import models  # , IntegrityError
 from django.utils.translation import ugettext_lazy as _
-from django.contrib.contenttypes.fields import GenericRelation
-from django.core.urlresolvers import reverse
+# from django.contrib.contenttypes.fields import GenericRelation
+# from django.core.urlresolvers import reverse
 
 # from django.db.models import Q, F, Sum
 
-from .utils import calculate_results
+from .utils import (calculate_results,
+                    get_allowed_enrolments,
+                    get_max_allowed_credits,
+                    get_failed_courses,
+                    get_passed_courses,
+                    get_remaining_courses,
+                    generate_enrolment_form,
+                    generate_academic_progress,
+                    get_enroled_courses)
 from .temp_models import StudentResult
-from ..base.models import pXBaseModel
+# from ..base.models import pXBaseModel
 from ..users.models import Person
 from .period_registrations.models import PeriodRegistration
+
 # from ..periods.models import Period
 # from ..courses.models import Course, CoursePrerequisite
 # from ..enrolments.models import StudentEnrolment
-
-
-
-# from UIS.models.student_utils import get_results
-# from UIS.models.administration import Department
-# from UIS.models.courses import Section
-# from UIS.models.degrees import Degree
-# from UIS.models.employees import Employee
-# from UIS.models.time_period import Period
-#from UIS.models.users import, UISUser
 
 
 class Student(Person):
@@ -66,7 +65,7 @@ class Student(Person):
 
     """
 
-    #objects = StudentQuerySet.as_manager()
+    # objects = StudentQuerySet.as_manager()
 
     student_id = models.UUIDField(primary_key=True,
                                   default=uuid.uuid4,
@@ -84,8 +83,9 @@ class Student(Person):
         ('K', 'Kicked Out')
     )
     details = models.OneToOneField(Person, parent_link=True)
-    registration_number = models.CharField(unique=True, max_length=255,
-                                              verbose_name=_('Student UUID'))
+    registration_number = models.CharField(
+        unique=True, max_length=255,
+        verbose_name=_('Student UUID'))
     status = models.CharField(max_length=1, choices=STATUS, default='E')
     # can a student enroll in more than one degree,
     # perhaps a postgrad using the same UUID
@@ -93,33 +93,34 @@ class Student(Person):
                                      through=PeriodRegistration,
                                      blank=True,
                                      related_name='students')
+    degree = models.ForeignKey('degrees.Degree', null=True)
     # the below advisor field is EXTREMELY TEMPORARY
     advisor = models.CharField(max_length=200, null=True,
                                blank=True)
 
-    #THIS WILL BE A HUGE UPDATE: 17/02/15K approx 23:00, I think all the below fields show exists in the student registration model because then degree changes can be tracked (it was stupid having one choice only!!!) and enrollments can be finally related to student registraion, and finally; if advisors change, we have some history!!
+    # THIS WILL BE A HUGE UPDATE: 17/02/15K approx 23:00, I think all the below fields show exists in the student registration model because then degree changes can be tracked (it was stupid having one choice only!!!) and enrollments can be finally related to student registraion, and finally; if advisors change, we have some history!!
 
-    #UPDATE 22/02/15: the enrolment m2m needs to be here, it can't be related
-    #to student_registration. Why: because a section might have an associated
-    #period that is different from the registered_period. In other words, by
-    #having the studentenrolment to relate sections and studentregistration,
-    #integrity problem will occur because of these have a relation to period!
+    # UPDATE 22/02/15: the enrolment m2m needs to be here, it can't be related
+    # to student_registration. Why: because a section might have an associated
+    # period that is different from the registered_period. In other words, by
+    # having the studentenrolment to relate sections and studentregistration,
+    # integrity problem will occur because of these have a relation to period!
 
-    #here I come again on the evening of the 22/03/15 at 10:18 pm to discuss
-    #where to put enrolments. It's a coincidence that I come here after a month
-    #from bringing them back to the students model. Now, I will discuss, with
-    #myself what are the benefits of both locations:
-    #1- making a query on student enrolment:
+    # here I come again on the evening of the 22/03/15 at 10:18 pm to discuss
+    # where to put enrolments. It's a coincidence that I come here after a month
+    # from bringing them back to the students model. Now, I will discuss, with
+    # myself what are the benefits of both locations:
+    # 1- making a query on student enrolment:
     # a) using studentregistration: StudentEnrolment.objects.filter(studenregistration__student=blabla)
     # b) using student: StudentEnrolment.objects.filter(student=blabla)
-    #2- HOWEVER< this won't be possible when using student reg:
+    # 2- HOWEVER< this won't be possible when using student reg:
     #   student.studenenrolment.blablabla
-    #3- WHY DO I NEED studentenrolment in studentreg in the first place?
+    # 3- WHY DO I NEED studentenrolment in studentreg in the first place?
     # it's to make sure no enrolments are made without a registration!
     # much better than having some kind of validation
     # the only validation is input validation which should make sure that
     # the section period is equal to the registration period.
-    #LETS GO
+    # LETS GO
     # user_type = GenericRelation('UserType', related_query_name='students')
 
     class Meta:
@@ -132,6 +133,38 @@ class Student(Person):
                 period_registration__student=self).delete()
 
         calculate_results(self)
+
+    def get_allowed_enrolments(self):
+        return get_allowed_enrolments(self)
+
+    def get_max_allowed_credits(self):
+        return get_max_allowed_credits(self)
+
+    def get_enroled_courses(self):
+        return get_enroled_courses(self)
+
+    def get_passed_courses(self):
+        return get_passed_courses(self)
+
+    def get_failed_courses(self):
+        return get_failed_courses(student)
+
+    def get_degree(self):
+        """
+        """
+        return self.degree
+
+    def get_remaining_courses(self):
+        return get_remaining_courses(self)
+        """
+        """
+    def generate_form(self, form_type):
+        if form_type == 'Enrolment Form':
+            return generate_enrolment_form(self)
+        elif form_type == 'Academic Progress':
+            return generate_academic_progress(self)
+
+
 
 '''
 THE PARAGRAPH BELOW TRIES TO EXPLAIN MY THOUGHTS
@@ -148,19 +181,3 @@ STUDENT GRADE TABLE, IT'S VALUE WILL NOT BE NULL!
 
 THE STUDENT GRADE TABLE WILL ALSO HOLD CHANGES TO GRADES.
 '''
-
-
-
-
-class StudentAllowedEnrolment(models.Model):
-    '''
-    THIS SHOULD BE A MATERIALIZED VIEW, I DON'T LIKE THE CURRENT IMPLEMENTATION.
-    '''
-    student_allowed_enrolments_id = models.UUIDField(primary_key=True,
-                                                     default=uuid.uuid4,
-                                                     editable=False)
-
-    student = models.ForeignKey('Student', related_name='allowed_enrolment')
-    course = models.ForeignKey("courses.Course")
-    # permitted = models.BooleanField(default=True)
-    # primary = models.BooleanField(default=True)

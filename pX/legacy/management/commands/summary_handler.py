@@ -58,10 +58,15 @@ def summary_table_process(file, fieldnames, conflicts, verbosity):
                 student = Student.objects.get(
                     registration_number=row['registration_number'])
             except Student.DoesNotExist:
+                '''
+                let's see how many periods are these unkowns students
+                registered for
+                '''
                 if UNKNOWN_STUDENTS.get(row['registration_number']) is not None:
                     UNKNOWN_STUDENTS[row['registration_number']] += 1
                 else:
                     UNKNOWN_STUDENTS[row['registration_number']] = 1
+                # forget about him/her and move on
                 continue
 
                 # student = Student.objects.create(
@@ -92,16 +97,14 @@ def summary_table_process(file, fieldnames, conflicts, verbosity):
             if verbosity > 1:
                 if msg:
                     print('Created period {}.'
-                          .format(period)
-                    )
+                          .format(period))
             period_degree, msg = PeriodDegree.objects.get_or_create(
                 period=period,
                 degree=Degree.objects.filter()[0])
             if verbosity > 1:
                 if msg:
                     print('Created degree {} in period {}'
-                          .format(Degree.objects.filter()[0], period)
-                    )
+                          .format(Degree.objects.filter()[0], period))
             try:
                 student_registration = (
                     PeriodRegistration.objects.get(
@@ -131,8 +134,7 @@ def summary_table_process(file, fieldnames, conflicts, verbosity):
                         registration_type=registration_type))
                 if verbosity > 1:
                     print('Created registration for student {} in period {}'
-                          .format(student, period)
-                    )
+                          .format(student, period))
 
     conflicts.write("\nConflicts found in {}\n".format(file))
 
@@ -164,3 +166,23 @@ def summary_table_process(file, fieldnames, conflicts, verbosity):
                                     conflict['new_registration_type']
                             ))
         i += 1
+
+
+def create_registrations(config):
+    conflicts_file = (config['LOGS_FILES_LOCATION'] + '/' +
+                      'registration_CONFLICTS.txt')
+
+    conflicts = open(conflicts_file, 'w')
+
+    for file in config['FILES']:
+        prepared_file = (
+            config['PREPARED_FILES_LOCATION'] + '/' + 'summary' +
+            '_' + file[:-4] + '.csv'
+        )
+        summary_table_process(
+            prepared_file,
+            config['FIELDS'][file].get('process_fields').get('SUMMARY'),
+            conflicts,
+            config['VERBOSITY'])
+
+    conflicts.close()

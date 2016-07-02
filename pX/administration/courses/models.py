@@ -86,8 +86,8 @@ class Course(pXBaseModel):
 
     - the first_taught IS NEEDED for uniqueness, along with last_taught and
       is_obsolete, my original idea was correct, or so I hope!.
-
     '''
+
     course_id = models.UUIDField(primary_key=True,
                                  default=uuid.uuid4,
                                  editable=False)

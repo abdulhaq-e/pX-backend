@@ -65,20 +65,19 @@ class SectionEnrolment(pXBaseModel):
     #     return total.grade
 
 
-
-
 class SectionEnrolmentLog(pXBaseModel):
     """
     a temp. table to store added/deleted enrolment, until I
     find a better solution
     """
     section_enrolment_log_id = models.UUIDField(primary_key=True,
-                                    default=uuid.uuid4,
-                                    editable=False)
+                                                default=uuid.uuid4,
+                                                editable=False)
 
-    period_registration = models.ForeignKey('period_registrations.PeriodRegistration',
-                                on_delete=models.PROTECT,
-                                related_name='studentenrolmentlog')
+    period_registration = models.ForeignKey(
+        'period_registrations.PeriodRegistration',
+        on_delete=models.PROTECT,
+        related_name='studentenrolmentlog')
     section = models.ForeignKey('courses.Section', on_delete=models.PROTECT,
                                 related_name='studentenrolmentlog')
     STATUS = (

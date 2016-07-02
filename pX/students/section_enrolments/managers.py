@@ -15,7 +15,7 @@ class SectionEnrolmentManager(models.Manager.from_queryset(
             name=F('section__period_course__course__name'),
             name_ar=F('section__period_course__course__name_ar'),
             group=F('section__group'),
-            #grade=self.model.grade,
+            # grade=self.model.grade,
             credit=F('section__period_course__course__credit'),
             period=F('section__period_course__period')
         )

@@ -12,9 +12,25 @@ from ....students.section_enrolments.models import (SectionEnrolment,
                                                     SectionEnrolmentLog)
 from ....students.period_registrations.models import PeriodRegistration
 from ....administration.degrees.models import Degree, PeriodDegree
-from ....administration.courses.assessments.models import AssessmentResult
+from ....administration.courses.assessments.models import (
+    AssessmentResult, AssessmentType, Assessment)
+
 import re
 
+from ....administration.courses.signals import (
+    disconnect_period_course_signals,
+    connect_period_course_signals)
+from ....students.section_enrolments.signals import (
+    disconnect_section_enrolment_signals,
+    connect_section_enrolment_signals)
+from ....administration.courses.assessments.signals import (
+    disconnect_asessement_signals,
+    connect_assessment_signals,
+    disconnect_assessment_type_signals,
+    connect_assessment_type_signals,
+    disconnect_assessment_result_signals,
+    connect_assessment_result_signals
+)
 
 def registration_table_read(file, fieldnames, rows):
     with open(file, 'rb') as csvfile:
@@ -39,6 +55,11 @@ def registration_table_write(file, fieldnames, rows):
 
 
 def registration_table_process(file, fieldnames, conflicts, verbosity):
+    disconnect_period_course_signals()
+    disconnect_section_enrolment_signals()
+    disconnect_asessement_signals()
+    disconnect_assessment_type_signals()
+    disconnect_assessment_result_signals()
 
     UNKNOWN_STUDENTS = {}
     REPEATED_ENROLMENTS = {}
@@ -55,6 +76,11 @@ def registration_table_process(file, fieldnames, conflicts, verbosity):
                 course = Course.objects.get(code=row['code'],
                                             credit=row['credit'])
             except Course.DoesNotExist:
+                '''
+                AE200 and AE325 were once 2 credits,
+                so we need to create them manually,
+                this should probably be placed in another place
+                '''
                 if row['code'] == 'AE200':
                     name = 'Introduction To Aeronautics'
                 elif row['code'] == 'AE325':
@@ -109,10 +135,17 @@ def registration_table_process(file, fieldnames, conflicts, verbosity):
                 if msg:
                     print('Created course {} in period {}'
                           .format(course, period))
+            total_assessment_type = AssessmentType.objects.get(
+                assessment_type='Total')
+
+            total_assessment, msg = period_course.assessments.get_or_create(
+                        assessment_type=total_assessment_type,
+                        total_grade=100)
+
             section, msg = Section.objects.get_or_create(
                 period_course=period_course,
                 group=row['group'])
-            if verbosity > 2:
+            if verbosity > 1:
                 if msg:
                     print('Created section {}'.format(section))
 
@@ -180,53 +213,50 @@ def registration_table_process(file, fieldnames, conflicts, verbosity):
                 row['grade'] = None
 
             row['grade'] = float(row['grade']) if row['grade'] is not None else None
-
-            total_assessment = period_course.assessments.get(
-                assessment_type__assessment_type='Total')
             total_assessment.result_status = 'P'
             total_assessment.save()
+
             if (row['added_or_dropped'] != 'D' or row['status'] != '0'):
                 try:
                     section_enrolment = SectionEnrolment.objects.get(
                         section=section,
                         period_registration=period_registration)
+                    section_enrolment_total, msg = section_enrolment.assessment_results.get_or_create(
+                        assessment=total_assessment)
+                    # if (row['grade'] is not None and
+                    #         section_enrolment_total._grade != row['grade']):
 
-                    if (row['grade'] is not None and
-                            section_enrolment.grade != row['grade']):
+                    if REPEATED_ENROLMENTS.get(student.registration_number) is not None:
+                        REPEATED_ENROLMENTS[
+                            student.registration_number].append({
+                                'section': section,
+                                'period_registration': period_registration,
+                                'grade': section_enrolment_total._grade,
+                                'other_grade': row['grade']
+                            })
+                    else:
+                        REPEATED_ENROLMENTS[
+                            student.registration_number] = [{
+                                'section': section,
+                                'period_registration': period_registration,
+                                'grade': section_enrolment.grade,
+                                'other_grade': row['grade']
+                            }]
 
-                        if REPEATED_ENROLMENTS.get(student) is not None:
-                            REPEATED_ENROLMENTS[
-                                student.registration_number].append({
-                                    'section': section,
-                                    'period_registration': period_registration,
-                                    'grade': section_enrolment.grade,
-                                    'other_grade': row['grade']
-                                })
-                        else:
-                            REPEATED_ENROLMENTS[
-                                student.registration_number] = [{
-                                    'section': section,
-                                    'period_registration': period_registration,
-                                    'grade': section_enrolment.grade,
-                                    'other_grade': row['grade']
-                                }]
-
-                        if section_enrolment.grade is None:
-                            section_enrolment_total = section_enrolment.assessment_results.get(
-                    assessment=total_assessment)
-                            section_enrolment_total._grade=row['grade']
-                            section_enrolment_total.save()
-                            # print(section_enrolment_total.grade)
+                    if (section_enrolment_total._grade is None and
+                        row['grade'] is not None):
+                        section_enrolment_total._grade=row['grade']
+                        section_enrolment_total.save()
+                        # print(section_enrolment_total.grade)
 
                 except SectionEnrolment.DoesNotExist:
                     section_enrolment = SectionEnrolment.objects.create(
                         section=section,
                         period_registration=period_registration)
-                    section_enrolment_total = section_enrolment.assessment_results.get(
-                    assessment=total_assessment)
+                    section_enrolment_total, msg = section_enrolment.assessment_results.get_or_create(
+                        assessment=total_assessment)
                     section_enrolment_total._grade=row['grade']
                     section_enrolment_total.save()
-                    #print(section_enrolment_total.grade)
 
                     if verbosity > 1:
                         print('Created student enrolment {}'
@@ -306,7 +336,68 @@ def registration_table_process(file, fieldnames, conflicts, verbosity):
         conflicts.write("{}- Course: {}\n".format(i, course))
         i += 1
 
+    # some cleaning up because I disabled signals:
+
+    # because of disabling period_courses signals
+    for period_course in PeriodCourse.objects.all():
+        final_exam = AssessmentType.objects.get(
+            assessment_type='Final Examination')
+        course_work = AssessmentType.objects.get(
+            assessment_type='Course Work')
+        period_course.assessments.get_or_create(
+            assessment_type=course_work,
+            total_grade=40)
+        period_course.assessments.get_or_create(
+            assessment_type=final_exam,
+            total_grade=60)
+
+    # because of disabling section_enrolment signals
+    for section_enrolment in SectionEnrolment.objects.all():
+        for assessment in Assessment.objects.filter(
+            period_course=section_enrolment.section.period_course):
+            section_enrolment.assessment_results.get_or_create(
+                assessment=assessment)
+
     AssessmentResult.objects.filter(
         grade=-1).update(grade=None)
+
+
+    # because of disabling assessment_result signals
+    for assessment_result in AssessmentResult.objects.filter(
+        assessment__assessment_type__assessment_type='Total'):
+        assessment_result.grade = assessment_result._grade
+        assessment_result.save()
+        section_enrolment = assessment_result.section_enrolment
+        section_enrolment.grade = assessment_result.grade
+        section_enrolment.save()
+
+    # for non registered periods, delete all enrolments
     SectionEnrolment.objects.exclude(
         period_registration__registration_type='R').delete()
+
+
+    # turn on the signals again
+    connect_assessment_signals()
+    connect_period_course_signals()
+    connect_assessment_type_signals()
+    connect_assessment_result_signals()
+    connect_section_enrolment_signals()
+
+
+def create_enrolments(config):
+    conflicts_file = (config['LOGS_FILES_LOCATION'] + '/' +
+                      'ENROLMENT_CONFLICTS.txt')
+    conflicts = open(conflicts_file, 'w')
+
+    for file in config['FILES']:
+        prepared_file = (
+            config['PREPARED_FILES_LOCATION'] + '/' + 'registration' +
+            '_' + file[:-4] + '.csv'
+        )
+        registration_table_process(
+            prepared_file,
+            config['FIELDS'][file].get('process_fields').get('REGISTRATION'),
+            conflicts,
+            config['VERBOSITY'])
+
+    conflicts.close()

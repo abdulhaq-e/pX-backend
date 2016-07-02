@@ -1,52 +1,20 @@
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 
+from django.template.loader import get_template
+
 import os
 from django.http import HttpResponse
 from django.template import Context
-from django.template.loader import get_template
 from subprocess import Popen, PIPE
 import tempfile
-from .models.students import Student
-from ..students.enrolments.models import StudentEnrolment
+from ..students.models import Student
+# from ..students.enrolments.models import StudentEnrolment
 
 
 def student_enrolment_as_pdf(request, registration_number):
 
     student = Student.objects.get(registration_number=registration_number)
-    context = {
-        'student': student,
-        'allowed_courses': student.get_allowed_enrolments()
-    }
-    template = get_template('my_template.tex', using='jinja2')
-    rendered_tpl = template.render(context=context).encode('utf8')
-    # with open(os.path.join(
-    #         '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/',
-    #         's'+registration_number), 'w') as texfile:
-    #     texfile.write(rendered_tpl)
-    # Python3 only. For python2 check out the docs!
-    if student.advisor == None:
-        student.advisor = "بدون مشرف"
-    directory = os.path.join(
-        '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/student_enrolment/' +
-        student.advisor
-    )
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    #tempdir = tempfile.mkdtemp()
-    # Create subprocess, supress output with PIPE and
-    # run latex twice to generate the TOC properly.
-    # Finally read the generated pdf.
-    for i in range(2):
-        process = Popen(
-            ['xelatex',
-             '-jobname', ' '.join([student.get_full_name_ar(), ' - ',
-                                   registration_number]),
-             '-output-directory', directory],
-            stdin=PIPE,
-            stdout=PIPE,
-        )
-        process.communicate(rendered_tpl)
     # with open(os.path.join(tempdir, 'texput.pdf'), 'rb') as f:
     #     pdf = f.read()
     # r = HttpResponse(content_type='application/pdf')
@@ -56,44 +24,9 @@ def student_enrolment_as_pdf(request, registration_number):
     return None
 
 
-def student_grade_as_pdf(request, registration_number):
+def student_academic_progress(request, registration_number):
 
     student = Student.objects.get(registration_number=registration_number)
-    context = {
-        'student': student,
-        'enrolments': student.get_enroled_courses(),
-        'registrations': student.student_registrations.all(),
-        'results': student.student_registrations.last().studentresult,
-    }
-    template = get_template('student_grade_template.tex', using='jinja2')
-    rendered_tpl = template.render(context=context).encode('utf8')
-    # with open(os.path.join(
-    #         '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/tests/',
-    #         's'+registration_number+'.tex'), 'w') as texfile:
-    #     texfile.write(rendered_tpl)
-    # Python3 only. For python2 check out the docs!
-    if student.advisor == None:
-        student.advisor = "بدون مشرف"
-    directory = os.path.join(
-        '/home/abdulhaq/workspace/pX/pX-tools/legacyDB/student_grade/' +
-        student.advisor
-    )
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    #tempdir = tempfile.mkdtemp()
-    # Create subprocess, supress output with PIPE and
-    # run latex twice to generate the TOC properly.
-    # Finally read the generated pdf.
-    for i in range(2):
-        process = Popen(
-            ['xelatex',
-             '-jobname', ' '.join([student.get_full_name_ar(), ' - ',
-                                   registration_number]),
-             '-output-directory', directory],
-            stdin=PIPE,
-            stdout=PIPE,
-        )
-        process.communicate(rendered_tpl)
     # with open(os.path.join(tempdir, 'texput.pdf'), 'rb') as f:
     #      pdf = f.read()
     # r = HttpResponse(content_type='application/pdf')
@@ -163,7 +96,7 @@ def student_form2_pdf(request, registration_number, period_degree):
     for i in range(2):
         process = Popen(
             ['xelatex',
-             '-jobname', ' '.join([student.get_full_name_ar(), ' - ',
+             '-jobname', ' '.join([student.full_name_ar, ' - ',
                                    registration_number]),
              '-output-directory', directory],
             stdin=PIPE,

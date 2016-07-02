@@ -8,6 +8,13 @@ from .assessments.models import AssessmentType
 
 
 def on_save_period_course(sender, instance, **kwargs):
+    '''
+    All created period courses should've three assessments
+    1- Course Work
+    2- Final Examin
+    3- Total
+    The assessment types are created in another signal
+    '''
 
     if sender != PeriodCourse:
         return

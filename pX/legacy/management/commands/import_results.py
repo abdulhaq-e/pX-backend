@@ -4,35 +4,21 @@ from __future__ import division, unicode_literals
 from copy import deepcopy
 from django.db import models, IntegrityError
 from django.utils.translation import ugettext_lazy as _
-from pX import settings
+# from pX import settings
 import uuid
 from django.core.urlresolvers import reverse
 from collections import OrderedDict
-#from UIS.querysets import SectionEnrolmentQuerySet
-from UIS.validators import validate_grade
 from django.db.models import F, Sum
-from UIS.managers import SectionEnrolmentManager
-from UIS.models.time_period import Period, PeriodDegree
-from UIS.models.courses import Course
-from UIS.models.users import Person
-from django.contrib.contenttypes.fields import GenericRelation
-from UIS.models.base_model import pXBaseModel
-#from UIS.models.administration import Department
-# from UIS.models.courses import Section
-# from UIS.models.degrees import Degree
-# from UIS.models.employees import Employee
-# from UIS.models.time_period import Period
-#from UIS.models.users import, UISUser
-
-
-
 
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 import random
 from subprocess32 import check_call
 import unicodecsv
-from UIS.models.students import SectionEnrolment
+from pX.students.section_enrolments.models import SectionEnrolment
+from pX.students.models import Student
+from pX.administration.periods.models import Period
+
 
 import re
 
@@ -53,11 +39,10 @@ class Command(BaseCommand):
                             help='Only simulate the import process!')
 
     fieldnames = ['registration_number',
-                          'name',
-                          'carry_marks',
-                          'final_exam',
-                          'total']
-    period = Period.objects.filter(period=2, academic_year='2014,2015')
+                  'name',
+                  'grade']
+
+    period = Period.objects.filter(period=1, academic_year='2015,2016')
 
     def _simulate_import(self, file, code):
 
@@ -78,25 +63,35 @@ class Command(BaseCommand):
                 csvfile, self.fieldnames)
             next(reader, None)
             for row in reader:
-                registration_number = '0' + row['registration_number']
-                enrolment = SectionEnrolment.objects.get(
-                    student_registration__student__registration_number=registration_number,
-                    section__section_type__period_course__course__code=code,
-                    student_registration__period_degree__period=self.period)
-                enrolment.grade = row['total']
-                enrolment.carry_marks = row['carry_marks']
-                enrolment.final_exam = row['final_exam']
-                enrolment.save()
+                registration_number =  row['registration_number']
+                # print(registration_number)
+                temp_fix = SectionEnrolment.custom.filter(
+                    # period_registration__period=self.period,
+                    period_registration__student__registration_number=registration_number,
+                    code=code)[0]
+                # print("hello")
+                temp_res = temp_fix.assessment_results.all().filter(assessment__assessment_type__assessment_type='Total')[0]
+                # temp_res = temp_fix.assessment_results.all()[2]
+                temp_res._grade = float(row['grade'])
+                temp_res.save()
+                student = Student.objects.get(registration_number=registration_number)
+                student.calculate_results()
+                student.generate_form('Enrolment Form')
+                student.generate_form('Academic Progress')
+                # enrolment = SectionEnrolment.objects.get(
+                #     student_registration__student__registration_number=registration_number,
+                #     section__section_type__period_course__course__code=code,
+                #     student_registration__period_degree__period=self.period)
+                # enrolment.grade = row['total']
+                # enrolment.carry_marks = row['carry_marks']
+                # enrolment.final_exam = row['final_exam']
+                # enrolment.save()
                 if self.verbosity > 1:
                     print("Added result for student {}. "
-                          "Carry marks: {} "
-                          "Final exam: {} "
                           "Total Grade: {} "
                           .format(
                               registration_number,
-                              enrolment.carry_marks,
-                              enrolment.final_exam,
-                              enrolment.grade)
+                              temp_res.grade)
                     )
 
     def handle(self, *args, **options):

@@ -1,7 +1,7 @@
 from django.conf.urls import include, url
-from django.views.generic import TemplateView
+# from django.views.generic import TemplateView
 from rest_framework import routers
-from django.contrib import admin
+# from django.contrib import admin
 # from UIS.api.views.student import StudentViewSet
 # from UIS.api.views.user import UserViewSet
 # from UIS.api.views.course import CourseViewSet
@@ -11,8 +11,13 @@ from django.contrib import admin
 # from UIS.api.views.period_degree import PeriodDegreeViewSet
 # from UIS.api.views.section import SectionViewSet
 # from UIS import views
+
+from rest_framework_jwt.views import obtain_jwt_token
+
 from pX.administration.courses.views import PeriodCourseViewSet
 from pX.administration.periods.views import PeriodViewSet
+from pX.users.views import PersonViewSet
+from pX.forms.views import advisors_list_as_pdf
 
 router = routers.DefaultRouter(trailing_slash=False)
 #router.register(r'users', UserViewSet)
@@ -39,18 +44,15 @@ router.register(r'period-courses',
 router.register(r'periods',
                 PeriodViewSet,
                 base_name='periods')
+router.register(r'people',
+                PersonViewSet,
+                base_name='people')
 
 urlpatterns = [
 
-    url(r'^api/v1/', include(router.urls))
-]
-#     url(
-#         r'^api-auth/',
-#         include('rest_framework.urls',
-#                 namespace='rest_framework')
-#     ),
+    url(r'^api/v1/', include(router.urls)),
 
-#     url(r'^api/v1/auth/login/', 'rest_framework_jwt.views.obtain_jwt_token'),
+    url(r'^api/v1/auth/login/', obtain_jwt_token),
 
 #     url(
 #         r'^docs/', include('rest_framework_swagger.urls')
@@ -65,12 +67,14 @@ urlpatterns = [
 #         views.student_grade_as_pdf,
 #         name='student_grade__pdf'
 #     ),
-#     url(
-#         r'^advisor-lists/$',
-#         views.advisors_list_as_pdf,
-#         name='advisors_list_as_pdf'
-#     ),
-#     # url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+     url(
+         r'^advisor-lists/$',
+         advisors_list_as_pdf,
+         name='advisors_list_as_pdf'
+     ),
+     ]
+#     # url(r'^o/', include('oauth2_provider.urls',
+# namespace='oauth2_provider')),
 
 #     # url('', include('social.apps.django_app.urls', namespace='social')),
 #     # url('', include('django.contrib.auth.urls', namespace='auth')),

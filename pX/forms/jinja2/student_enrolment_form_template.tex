@@ -1,0 +1,164 @@
+\documentclass[fontsize=14,headinclude=true, headsepline=true,
+footsepline=true]{scrartcl}
+\usepackage{scrlayer-scrpage}
+\usepackage[paperwidth=210mm,paperheight=297mm,left=25mm,right=25mm,
+          top=30mm,bottom=30mm,footskip=10mm,headsep=0mm]{geometry}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\usepackage{booktabs}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage[inline]{enumitem}
+\usepackage{dashrule}
+\setlist{nosep}
+%\usepackage[arabic,english]{babel}
+\setdefaultlanguage{english}
+\setotherlanguage[numerals=maghrib]{arabic}
+%\csname @Latintrue\endcsname
+
+\setmainfont[Ligatures=TeX]{Scheherazade}%{Scheherazade}%{Amiri}
+\setsansfont{Scheherazade}%Al-Kharashi 12}%Scheherazade}
+\newfontfamily\arabicfont[Script=Arabic,Scale=1.2]{Scheherazade}%Adobe Arabic}
+
+\pagestyle{scrheadings}
+\rohead*{\bfseries\textarabic{جامعة طرابلس\\كلية الهندسة\\قسم هندسة الطيران}}
+\lohead*{\bfseries\textarabic{مكتب الدراسة والامتحانات}}
+\cfoot*{}
+\lofoot*{\textarabic{تاريخ الإصدار: \today}}
+\chead*{\includegraphics[scale=0.7]{/home/abdulhaq/workspace/pX/pX-backend/pX/forms/jinja2/logo.pdf}}
+%\chead*{\textenglish{whatever}}
+
+\AtBeginDocument{\begingroup}
+\AtEndDocument{\endgroup}
+
+\makeatletter
+
+\newcolumntype{"}{@{\hskip\tabcolsep\vrule width 2pt\hskip\tabcolsep}}
+\makeatother
+
+
+\begin{document}
+\resetdefaultlanguage{arabic}
+  %{{ content }}
+
+%\title{\textarabic{نموذج الحجز المبدئي لفصل الخريف 2015 للعام الدراسي
+  %2015/2016}}
+%\date{}
+%\maketitle
+
+%\begin{Arabic}
+{
+\bfseries
+\centering{نموذج الحجز المبدئي لفصل الربيع 2016 للعام الدراسي
+  2015/2016\\[0.5cm]\par
+}
+}
+الاسم: {{ student.full_name_ar  }}
+
+رقم القيد: {{ student.registration_number }}
+
+اسم المشرف: {{ student.advisor }}
+
+
+\textbf{ملاحظات:}
+\begin{enumerate}
+  \item الحد الأدنى من الوحدات 12 والحد الأقصى {{
+  student.get_max_allowed_credits() }}.
+  \item ضرورة مراعاة تسجيل المقررات أولاً بأول.
+\item للحجز يتم اختيار المقررات من قائمة المقررات المسموح بها ومن ثم إدراجها في الجدول ويمنع
+إدراج مقرر غير موجود بالقائمة.
+\item حجز المواد العامة يكون عبر الطريقة المعلنة من المرحلة العامة. \textenglish{www.eng.org.ly}
+  \item لحجز المقررات التالية \textenglish{ME201, ME206, ME215, ME307, EE280} يجب التسجيل في القائمة
+  المبدئية عند المكان المعلن ولا يكفي حجزها في هذه القائمة.
+\item يتحمل الطالب مسؤولية التعارض في الجداول الدراسية والامتحانات الدورية والنهائية.
+
+\end{enumerate}
+
+\textbf{المقررات المسموح بتسجيلها: (اسم المقرر | رمز المقرر | عدد الوحدات)}
+
+\begin{table}[!ht]
+  \small
+  \centering
+\begin{tabular}{@{}l@{}l@{}c@{}c@{}"@{}l@{}l@{}c@{}c@{}}
+  {% for course in allowed_courses %}
+ {{loop.index}}. & \textenglish{ {{ course.name_en |replace('&','\&')|safe }} }
+  & \textenglish{ {{ course.code }} } & {{course.credit}}
+  {% if loop.index % 2 == 1 %}
+      &
+  {% endif %}
+  {% if loop.index % 2 == 0 %}
+    \\
+  {% endif %}
+  {% endfor %}
+\end{tabular}
+\end{table}
+
+\begin{table}[!ht]
+   \renewcommand*{\arraystretch}{1.1}
+   % \setlength{\aboverulesep}{0pt}
+    %\setlength{\belowrulesep}{0pt}
+    %\setlength{\extrarowheight}{.75ex}
+  \centering
+  \begin{tabular}{ccm{6.5cm}ccc}
+    \toprule
+ت & رمز المقرر & \multicolumn{1}{c}{اسم المقرر} &
+ عدد الوحدات & المجموعة & موافقة الحجز
+    \\
+    \midrule
+
+    {% for i in range(1,8) %}
+    {{ loop.index }} & & & & &\\
+    {% endfor %}
+\bottomrule
+  \end{tabular}
+\end{table}
+مجموع الوحدات المسجلة: $\ldots\ldots$
+
+%\vspace{0.2cm}
+
+\vspace{1cm}
+
+\begin{minipage}[t]{0.5\textwidth}
+\flushright
+توقيع الطالب: $\ldots\ldots\ldots\ldots\ldots\ldots\ldots\dots$
+  \end{minipage}
+\hfill
+\begin{minipage}[t]{0.5\textwidth}
+\flushleft
+التاريخ: $\ldots\ldots\ldots\ldots\ldots\ldots\ldots\dots$
+\end{minipage}
+\vfill
+
+% \textbf{بيانات تعبأ من قبل المشرف:}
+%
+%
+% ملاحظات:
+%
+% \fbox{
+%   \begin{minipage}{\textwidth}
+%     \hfill\vspace{2.5cm}
+%   \end{minipage}
+% }
+% \vspace{0.3cm}
+%
+
+\vspace{0.3cm}
+
+\begin{minipage}[t]{0.5\textwidth}
+\flushright
+توقيع المشرف: $\ldots\ldots\ldots\ldots\ldots\ldots\ldots\dots$
+  \end{minipage}
+\hfill
+\begin{minipage}[t]{0.5\textwidth}
+\flushleft
+التاريخ: $\ldots\ldots\ldots\ldots\ldots\ldots\ldots\dots$
+\end{minipage}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
